@@ -1,0 +1,124 @@
+.adminLayout {
+    min-height: 100vh;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+}
+
+.adminLayout .ant-layout-sider {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 100;
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 100vh;
+}
+
+.adminLayout .ant-layout {
+    margin-left: 250px;
+    transition: margin-left 0.2s;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.adminLayout .ant-layout-sider-collapsed + .ant-layout {
+    margin-left: 80px;
+}
+
+.logo {
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.trigger {
+    font-size: 18px;
+    padding: 0 24px;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.trigger:hover {
+    color: #1890ff;
+}
+
+.header {
+    background: #fff;
+    padding: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    position: sticky;
+    top: 0;
+    z-index: 99;
+    flex-shrink: 0;
+    height: 64px;
+}
+
+.headerLeft {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.headerRight {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-right: 24px;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 8px 16px;
+    transition: background-color 0.2s;
+}
+
+.headerRight:hover {
+    background: rgba(0, 0, 0, 0.025);
+}
+
+.username {
+    margin-left: 8px;
+    font-weight: 500;
+}
+
+.breadcrumb {
+    margin: 0;
+}
+
+.content {
+    margin: 24px;
+    padding: 24px;
+    background: #fff;
+    border-radius: 8px;
+    overflow-y: auto;
+    flex: 1;
+    height: calc(100vh - 112px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+    .adminLayout .ant-layout {
+        margin-left: 0;
+    }
+    
+    .adminLayout .ant-layout-sider-collapsed + .ant-layout {
+        margin-left: 0;
+    }
+    
+    .adminLayout .ant-layout-sider {
+        position: fixed;
+        z-index: 1000;
+    }
+}

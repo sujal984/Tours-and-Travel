@@ -1,0 +1,337 @@
+.booking-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary);
+}
+
+.booking-container {
+  flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3rem 1rem;
+  width: 100%;
+}
+
+/* Header */
+.booking-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.booking-header h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.booking-header p {
+  font-size: 1.125rem;
+  color: #666;
+}
+
+/* Steps Card */
+.steps-card {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 2rem;
+}
+
+.booking-container :deep(.ant-steps) {
+  padding: 1rem 0;
+}
+
+.booking-container :deep(.ant-steps-item-process .ant-steps-item-icon) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+}
+
+.booking-container :deep(.ant-steps-item-finish .ant-steps-item-icon) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+}
+
+.booking-container :deep(.ant-steps-item-finish .ant-steps-item-icon::before) {
+  color: white;
+}
+
+/* Form Card */
+.booking-form-card {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 2rem;
+}
+
+.booking-step h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.step-description {
+  color: #666;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+}
+
+.booking-form-card :deep(.ant-form-item) {
+  margin-bottom: 1.5rem;
+}
+
+.booking-form-card :deep(.ant-form-item-label > label) {
+  font-weight: 500;
+}
+
+.booking-form-card :deep(.ant-input),
+.booking-form-card :deep(.ant-input-number) {
+  border-radius: 4px;
+  border: 1px solid #e8e8e8;
+  transition: all 0.3s ease;
+}
+
+.booking-form-card :deep(.ant-input:focus),
+.booking-form-card :deep(.ant-input-number:focus) {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.booking-form-card :deep(.ant-btn-primary) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  height: 44px;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.booking-form-card :deep(.ant-btn-primary:hover) {
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Passenger Table */
+.passenger-table {
+  margin-bottom: 2rem;
+}
+
+.booking-container :deep(.passenger-table .ant-table-thead > tr > th) {
+  background-color: #f0f2f5;
+  font-weight: 600;
+  border-bottom: 2px solid #e8e8e8;
+}
+
+.booking-container :deep(.passenger-table .ant-table-tbody > tr > td) {
+  padding: 1rem;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.booking-container :deep(.passenger-table .ant-input) {
+  border-radius: 4px;
+}
+
+/* Step Buttons */
+.step-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e8e8e8;
+}
+
+.step-buttons :deep(.ant-btn) {
+  min-width: 150px;
+  height: 40px;
+  font-weight: 500;
+}
+
+/* Booking Summary */
+.booking-summary {
+  background-color: #f9f9f9;
+  padding: 2rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.booking-summary h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  color: #666;
+  font-size: 1rem;
+}
+
+.summary-row .value {
+  font-weight: 600;
+  color: #333;
+}
+
+.booking-summary :deep(.ant-divider) {
+  margin: 1.5rem 0;
+}
+
+.passenger-summary {
+  background-color: white;
+  padding: 1rem;
+  border-left: 4px solid #667eea;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.passenger-summary p {
+  margin: 0;
+  color: #666;
+}
+
+/* Price Summary Card */
+.price-summary-card {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 2rem;
+  position: sticky;
+  top: 20px;
+  height: fit-content;
+}
+
+.price-summary-card h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+.price-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  color: #666;
+  font-size: 1rem;
+}
+
+.price-item.total {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.price-item .price,
+.price-item .quantity,
+.price-item .total-price {
+  font-weight: 600;
+  color: #667eea;
+}
+
+.price-item .total-price {
+  font-size: 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.price-note {
+  background-color: #e6f7ff;
+  border-left: 4px solid #1890ff;
+  padding: 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #0050b3;
+  margin-top: 1.5rem;
+  line-height: 1.6;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .booking-container {
+    padding: 2rem 1rem;
+  }
+
+  .booking-header h1 {
+    font-size: 2rem;
+  }
+
+  .booking-header p {
+    font-size: 1rem;
+  }
+
+  .steps-card {
+    padding: 1.5rem;
+  }
+
+  .booking-form-card {
+    padding: 1.5rem;
+  }
+
+  .booking-step h2 {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .price-summary-card {
+    position: static;
+  }
+
+  .step-buttons {
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .step-buttons :deep(.ant-btn) {
+    min-width: unset;
+  }
+}
+
+@media (max-width: 480px) {
+  .booking-container {
+    padding: 1.5rem 1rem;
+  }
+
+  .booking-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .steps-card {
+    padding: 1rem;
+  }
+
+  .booking-form-card {
+    padding: 1rem;
+  }
+
+  .booking-step h2 {
+    font-size: 1.125rem;
+  }
+
+  .booking-summary {
+    padding: 1rem;
+  }
+
+  .price-summary-card {
+    padding: 1.5rem;
+  }
+
+  .booking-container :deep(.passenger-table .ant-table-tbody > tr > td) {
+    padding: 0.5rem;
+  }
+
+  .summary-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}

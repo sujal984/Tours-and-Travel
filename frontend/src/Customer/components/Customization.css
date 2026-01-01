@@ -1,0 +1,247 @@
+.customization-page {
+  min-height: 100vh;
+  background: var(--bg-secondary);
+  padding: var(--spacing-2xl) 0;
+}
+
+.customization-container {
+  max-width: var(--container-lg);
+  margin: 0 auto;
+  padding: 0 var(--spacing-xl);
+}
+
+.customization-header {
+  text-align: center;
+  margin-bottom: var(--spacing-3xl);
+}
+
+.customization-header h1 {
+  font-size: var(--font-4xl);
+  font-weight: var(--font-weight-bold);
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: var(--spacing-md);
+}
+
+.customization-header p {
+  font-size: var(--font-lg);
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.customization-card {
+  background: var(--bg-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-2xl);
+  margin-bottom: var(--spacing-2xl);
+}
+
+.customization-steps {
+  margin-bottom: var(--spacing-3xl);
+}
+
+.customization-steps .ant-steps-item-process .ant-steps-item-icon {
+  background: var(--gradient-primary);
+  border-color: var(--primary-color);
+}
+
+.customization-steps .ant-steps-item-finish .ant-steps-item-icon {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.customization-steps .ant-steps-item-finish .ant-steps-item-icon .ant-steps-icon {
+  color: var(--text-white);
+}
+
+.customization-form {
+  min-height: 400px;
+}
+
+.step-content {
+  margin-bottom: var(--spacing-2xl);
+  padding: var(--spacing-xl) 0;
+}
+
+.step-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--spacing-xl);
+  border-top: 1px solid var(--border-color-light);
+}
+
+.step-actions .ant-btn {
+  min-width: 120px;
+  height: 40px;
+  font-weight: var(--font-weight-medium);
+}
+
+.confirmation-step {
+  text-align: center;
+  padding: var(--spacing-xl) 0;
+}
+
+.confirmation-icon {
+  margin-bottom: var(--spacing-lg);
+}
+
+.confirmation-step h3 {
+  font-size: var(--font-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.confirmation-step p {
+  font-size: var(--font-lg);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-xl);
+}
+
+.review-card {
+  text-align: left;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color-light);
+  margin-top: var(--spacing-lg);
+}
+
+.review-card .ant-card-body {
+  padding: var(--spacing-lg);
+}
+
+.customization-info {
+  margin-top: var(--spacing-2xl);
+}
+
+.info-card {
+  text-align: center;
+  height: 100%;
+  border: 1px solid var(--border-color-light);
+  transition: all var(--transition-base);
+}
+
+.info-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary-light);
+}
+
+.info-card h4 {
+  font-size: var(--font-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.info-card p {
+  font-size: var(--font-base);
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: var(--line-height-relaxed);
+}
+
+/* Form Styling */
+.customization-form .ant-form-item-label > label {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+.customization-form .ant-input,
+.customization-form .ant-select-selector,
+.customization-form .ant-picker,
+.customization-form .ant-input-number {
+  border-radius: var(--radius-md);
+  border-color: var(--border-color);
+  transition: all var(--transition-base);
+}
+
+.customization-form .ant-input:focus,
+.customization-form .ant-select-focused .ant-select-selector,
+.customization-form .ant-picker:hover,
+.customization-form .ant-picker-focused,
+.customization-form .ant-input-number:hover,
+.customization-form .ant-input-number-focused {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.customization-form .ant-btn-primary {
+  background: var(--gradient-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-base);
+}
+
+.customization-form .ant-btn-primary:hover {
+  background: var(--gradient-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .customization-container {
+    padding: 0 var(--spacing-md);
+  }
+
+  .customization-header h1 {
+    font-size: var(--font-3xl);
+  }
+
+  .customization-card {
+    padding: var(--spacing-lg);
+  }
+
+  .customization-steps {
+    margin-bottom: var(--spacing-xl);
+  }
+
+  .step-content {
+    padding: var(--spacing-md) 0;
+  }
+
+  .step-actions {
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+
+  .step-actions .ant-btn {
+    width: 100%;
+  }
+
+  .confirmation-step {
+    padding: var(--spacing-md) 0;
+  }
+
+  .confirmation-step h3 {
+    font-size: var(--font-xl);
+  }
+}
+
+@media (max-width: 480px) {
+  .customization-page {
+    padding: var(--spacing-xl) 0;
+  }
+
+  .customization-header h1 {
+    font-size: var(--font-2xl);
+  }
+
+  .customization-header p {
+    font-size: var(--font-base);
+  }
+
+  .customization-card {
+    padding: var(--spacing-md);
+  }
+
+  .customization-steps .ant-steps-item-title {
+    font-size: var(--font-sm);
+  }
+}

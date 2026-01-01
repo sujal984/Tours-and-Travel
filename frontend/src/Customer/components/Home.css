@@ -1,0 +1,555 @@
+/* Home Page Styles with Premium Design */
+
+
+/* Hero Carousel Section */
+.hero-carousel {
+    position: relative;
+    height: 600px;
+    overflow: hidden;
+}
+
+.hero-carousel .ant-carousel {
+    height: 100%;
+}
+
+.hero-carousel .slick-slider,
+.hero-carousel .slick-list,
+.hero-carousel .slick-track,
+.hero-carousel .slick-slide>div {
+    height: 100%;
+}
+
+.carousel-slide {
+    position: relative;
+    height: 600px;
+    overflow: hidden;
+}
+
+.carousel-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(0.8);
+    transition: transform var(--transition-slow);
+}
+
+.carousel-slide:hover img {
+    transform: scale(1.05);
+}
+
+.carousel-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--gradient-overlay);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-2xl);
+}
+
+.carousel-content {
+    text-align: center;
+    max-width: 800px;
+}
+
+.carousel-overlay h1 {
+    color: var(--text-white);
+    font-size: var(--font-5xl);
+    font-weight: var(--font-weight-bold);
+    margin: 0 0 var(--spacing-md) 0;
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    animation: fadeInUp 0.8s ease-out;
+}
+
+.carousel-subtitle {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: var(--font-xl);
+    margin-bottom: var(--spacing-xl);
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.carousel-cta {
+    background: var(--accent-color);
+    border: none;
+    height: 50px;
+    font-size: var(--font-lg);
+    font-weight: var(--font-weight-semibold);
+    border-radius: var(--radius-lg);
+    padding: 0 var(--spacing-2xl);
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+    transition: all var(--transition-base);
+}
+
+.carousel-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255, 215, 0, 0.6);
+    background: var(--accent-color);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Custom Carousel Dots */
+.hero-carousel .slick-dots {
+    bottom: 30px;
+}
+
+.hero-carousel .slick-dots li button {
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: var(--radius-full);
+    width: 12px;
+    height: 12px;
+}
+
+.hero-carousel .slick-dots li.slick-active button {
+    background: var(--accent-color);
+    width: 32px;
+}
+
+/* Main Content Container */
+.home-content {
+    max-width: var(--container-xl);
+    margin: 0 auto;
+    padding: 0 var(--spacing-xl);
+}
+
+/* Welcome Section */
+.welcome-section {
+    padding: var(--spacing-4xl) 0;
+    /* background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%); */
+}
+
+.welcome-text h1 {
+    font-size: var(--font-4xl);
+    font-weight: var(--font-weight-extrabold);
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: var(--spacing-md);
+    line-height: var(--line-height-tight);
+}
+
+.welcome-tagline {
+    font-size: var(--font-2xl);
+    color: var(--accent-color);
+    font-weight: var(--font-weight-semibold);
+    font-style: italic;
+    margin-bottom: var(--spacing-lg);
+    text-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+}
+
+.welcome-description {
+    font-size: var(--font-lg);
+    color: var(--text-secondary);
+    line-height: var(--line-height-relaxed);
+    margin-bottom: var(--spacing-2xl);
+}
+
+.welcome-image {
+    width: 100%;
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-2xl);
+    transition: transform var(--transition-base);
+}
+
+.welcome-image:hover {
+    transform: translateY(-8px) scale(1.02);
+}
+
+/* Stats Section */
+.stats-section {
+    padding: var(--spacing-3xl) 0;
+    background: var(--gradient-primary-soft);
+    position: relative;
+    overflow: hidden;
+}
+
+.stats-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23667eea' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.4;
+}
+
+.stats-section .ant-statistic {
+    text-align: center;
+}
+
+.stats-section .ant-statistic-title {
+    font-size: var(--font-lg);
+    color: var(--text-secondary);
+    font-weight: var(--font-weight-medium);
+    margin-bottom: var(--spacing-sm);
+}
+
+.stats-section .ant-statistic-content {
+    font-size: var(--font-4xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--primary-color);
+}
+
+/* Popular Tours Section */
+.tours-section {
+    padding: var(--spacing-4xl) 0;
+    background: var(--bg-primary);
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: var(--spacing-3xl);
+}
+
+.section-header h2 {
+    font-size: var(--font-4xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+    position: relative;
+    display: inline-block;
+}
+
+.section-header h2::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 4px;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-full);
+}
+
+.section-subtitle {
+    font-size: var(--font-lg);
+    color: var(--text-tertiary);
+    margin-top: var(--spacing-xl);
+}
+
+/* Tour Card Enhancements */
+.tour-card-wrapper {
+    height: 100%;
+}
+
+.tour-card-wrapper .ant-card {
+    height: 100%;
+    border: none;
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-base);
+    transition: all var(--transition-base);
+    background: var(--bg-primary);
+}
+
+.tour-card-wrapper .ant-card:hover {
+    box-shadow: var(--shadow-primary);
+    transform: translateY(-8px);
+}
+
+.tour-image-wrapper {
+    position: relative;
+    overflow: hidden;
+    height: 240px;
+}
+
+.tour-image-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-slow);
+}
+
+.tour-card-wrapper .ant-card:hover .tour-image-wrapper img {
+    transform: scale(1.1);
+}
+
+.tour-type-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: var(--gradient-primary);
+    color: var(--text-white);
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-full);
+    font-size: var(--font-sm);
+    font-weight: var(--font-weight-semibold);
+    box-shadow: var(--shadow-md);
+    z-index: 2;
+}
+
+.tour-card-wrapper .ant-card-body {
+    padding: var(--spacing-xl);
+}
+
+.tour-card-wrapper h3 {
+    font-size: var(--font-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+    line-height: var(--line-height-snug);
+}
+
+.tour-duration {
+    color: var(--text-tertiary);
+    font-size: var(--font-sm);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.tour-description-text {
+    color: var(--text-secondary);
+    font-size: var(--font-base);
+    line-height: var(--line-height-relaxed);
+    margin-bottom: var(--spacing-lg);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.tour-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--border-color-light);
+}
+
+.tour-price-text {
+    font-size: var(--font-2xl);
+    font-weight: var(--font-weight-bold);
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Why Choose Us Section */
+.why-choose-section {
+    padding: var(--spacing-4xl) 0;
+    /* background: var(--bg-secondary); */
+    position: relative;
+}
+
+.feature-card {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    background: var(--bg-primary);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-color-light);
+    transition: all var(--transition-base);
+    height: 100%;
+}
+
+.feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary-light);
+}
+
+.feature-icon {
+    font-size: var(--font-6xl);
+    margin-bottom: var(--spacing-lg);
+    display: block;
+    filter: drop-shadow(0 4px 8px rgba(102, 126, 234, 0.2));
+}
+
+.feature-card h3 {
+    font-size: var(--font-xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+}
+
+.feature-card p {
+    font-size: var(--font-base);
+    color: var(--text-secondary);
+    line-height: var(--line-height-relaxed);
+    margin: 0;
+}
+
+/* Contact CTA Section */
+.contact-cta-section {
+    padding: var(--spacing-4xl) 0;
+    background: var(--gradient-primary);
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.contact-cta-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    animation: rotate 20s linear infinite;
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.contact-cta-section h2 {
+    font-size: var(--font-4xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-white);
+    margin-bottom: var(--spacing-md);
+    position: relative;
+    z-index: 1;
+}
+
+.contact-cta-section p {
+    font-size: var(--font-xl);
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: var(--spacing-2xl);
+    position: relative;
+    z-index: 1;
+}
+
+.cta-buttons {
+    position: relative;
+    z-index: 1;
+}
+
+.cta-buttons .ant-btn {
+    height: 50px;
+    font-size: var(--font-lg);
+    font-weight: var(--font-weight-semibold);
+    border-radius: var(--radius-lg);
+    padding: 0 var(--spacing-2xl);
+    border: 2px solid var(--text-white);
+    transition: all var(--transition-base);
+}
+
+.cta-buttons .ant-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-xl);
+}
+
+/* Loading State */
+.loading-wrapper {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .hero-carousel {
+        height: 400px;
+    }
+
+    .carousel-slide {
+        height: 400px;
+    }
+
+    .carousel-overlay h1 {
+        font-size: var(--font-3xl);
+    }
+
+    .welcome-section {
+        padding: var(--spacing-2xl) 0;
+    }
+
+    .welcome-text h1 {
+        font-size: var(--font-3xl);
+    }
+
+    .welcome-tagline {
+        font-size: var(--font-xl);
+    }
+
+    .stats-section {
+        padding: var(--spacing-2xl) 0;
+    }
+
+    .tours-section,
+    .why-choose-section {
+        padding: var(--spacing-2xl) 0;
+    }
+
+    .section-header h2 {
+        font-size: var(--font-3xl);
+    }
+
+    .contact-cta-section {
+        padding: var(--spacing-2xl) 0;
+    }
+
+    .contact-cta-section h2 {
+        font-size: var(--font-2xl);
+    }
+
+    .cta-buttons .ant-space {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .cta-buttons .ant-btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .home-content {
+        padding: 0 var(--spacing-md);
+    }
+
+    .hero-carousel {
+        height: 300px;
+    }
+
+    .carousel-slide {
+        height: 300px;
+    }
+
+    .carousel-overlay {
+        padding: var(--spacing-lg);
+    }
+
+    .carousel-overlay h1 {
+        font-size: var(--font-2xl);
+    }
+
+    .welcome-text h1 {
+        font-size: var(--font-2xl);
+    }
+
+    .section-header h2 {
+        font-size: var(--font-2xl);
+    }
+
+    .stats-section .ant-statistic-content {
+        font-size: var(--font-3xl);
+    }
+}

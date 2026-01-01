@@ -1,0 +1,8 @@
+from django.http import JsonResponse
+
+def index(request):
+    return JsonResponse({
+        "status": "ok",
+        "service": "Tours & Travels API",
+        "version": "v1"
+    })

@@ -1,0 +1,252 @@
+.mybookings-container {
+  flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3rem 1rem;
+  width: 100%;
+}
+
+/* Header */
+.mybookings-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.mybookings-header h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.mybookings-header p {
+  font-size: 1.125rem;
+  color: #666;
+}
+
+/* Loading Container */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+/* Summary Cards */
+.summary-card {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg,
+      rgba(102, 126, 234, 0.05) 0%,
+      rgba(118, 75, 162, 0.05) 100%);
+}
+
+.summary-card:hover {
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.15);
+  transform: translateY(-4px);
+}
+
+.summary-content h3 {
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.summary-content p {
+  color: #666;
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Table Card */
+.bookings-table-card {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 2rem;
+}
+
+.mybookings-container :deep(.ant-table) {
+  background-color: transparent;
+}
+
+.mybookings-container :deep(.ant-table-thead > tr > th) {
+  background-color: #f0f2f5;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 2px solid #e8e8e8;
+}
+
+.mybookings-container :deep(.ant-table-tbody > tr) {
+  transition: all 0.3s ease;
+}
+
+.mybookings-container :deep(.ant-table-tbody > tr:hover) {
+  background-color: #f9f9f9;
+}
+
+.mybookings-container :deep(.ant-table-tbody > tr > td) {
+  border-bottom: 1px solid #e8e8e8;
+  padding: 1rem;
+}
+
+/* Tags */
+.mybookings-container :deep(.ant-tag-green) {
+  background-color: #e6f7ed;
+  color: #22863a;
+  border-color: transparent;
+}
+
+.mybookings-container :deep(.ant-tag-orange) {
+  background-color: #fff7e6;
+  color: #ed7014;
+  border-color: transparent;
+}
+
+.mybookings-container :deep(.ant-tag-blue) {
+  background-color: #e6f7ff;
+  color: #0050b3;
+  border-color: transparent;
+}
+
+.mybookings-container :deep(.ant-tag-red) {
+  background-color: #fff1f0;
+  color: #d4380d;
+  border-color: transparent;
+}
+
+/* Buttons */
+.mybookings-container :deep(.ant-btn) {
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.mybookings-container :deep(.ant-btn-primary) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+
+.mybookings-container :deep(.ant-btn-primary:hover) {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Tabs */
+.mybookings-container :deep(.ant-tabs-nav) {
+  border-bottom: 2px solid #e8e8e8;
+  margin-bottom: 2rem;
+}
+
+.mybookings-container :deep(.ant-tabs-ink-bar) {
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Cancel Modal */
+.cancel-modal-content {
+  padding: 1rem 0;
+}
+
+.cancel-modal-content h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 1.5rem;
+}
+
+.cancel-modal-content p {
+  margin-bottom: 0.75rem;
+  color: #666;
+}
+
+.cancel-modal-content strong {
+  color: #333;
+}
+
+.cancel-modal-content .warning {
+  background-color: #fffbe6;
+  border-left: 4px solid #faad14;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+  color: #ad6800;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .mybookings-container {
+    padding: 2rem 1rem;
+  }
+
+  .mybookings-header h1 {
+    font-size: 2rem;
+  }
+
+  .mybookings-header p {
+    font-size: 1rem;
+  }
+
+  .summary-card {
+    padding: 1.5rem;
+  }
+
+  .summary-content h3 {
+    font-size: 1.5rem;
+  }
+
+  .bookings-table-card {
+    padding: 1.5rem;
+    overflow-x: auto;
+  }
+
+  .mybookings-container :deep(.ant-table) {
+    font-size: 0.9rem;
+  }
+
+  .mybookings-container :deep(.ant-table-tbody > tr > td) {
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .mybookings-container {
+    padding: 1.5rem 1rem;
+  }
+
+  .mybookings-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .summary-content h3 {
+    font-size: 1.25rem;
+  }
+
+  .bookings-table-card {
+    padding: 1rem;
+  }
+
+  .mybookings-container :deep(.ant-table) {
+    font-size: 0.85rem;
+  }
+
+  .mybookings-container :deep(.ant-btn) {
+    font-size: 0.85rem;
+    padding: 4px 8px;
+  }
+
+  .mybookings-container :deep(.ant-table-thead > tr > th) {
+    padding: 0.5rem;
+  }
+
+  .mybookings-container :deep(.ant-table-tbody > tr > td) {
+    padding: 0.5rem;
+  }
+}
