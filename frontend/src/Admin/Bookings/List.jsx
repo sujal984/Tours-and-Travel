@@ -32,6 +32,7 @@ const BookingsList = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [updatingBookingId, setUpdatingBookingId] = useState(null);
 
   useEffect(() => {
     fetchBookings();
@@ -78,16 +79,27 @@ const BookingsList = () => {
   };
 
   const handleStatusUpdate = async (bookingId, newStatus) => {
-    try {
-      await apiClient.patch(endpoints.GET_BOOKING_DETAIL(bookingId), {
-        status: newStatus,
-      });
-      message.success(`Booking ${newStatus} successfully`);
-      fetchBookings();
-    } catch (error) {
-      console.error("Error updating booking status:", error);
-      message.error("Failed to update booking status");
-    }
+    Modal.confirm({
+      title: `Confirm Status Change`,
+      content: `Are you sure you want to change this booking status to ${newStatus}?`,
+      okText: 'Yes, Change Status',
+      cancelText: 'Cancel',
+      onOk: async () => {
+        setUpdatingBookingId(bookingId);
+        try {
+          await apiClient.patch(endpoints.GET_BOOKING_DETAIL(bookingId), {
+            status: newStatus,
+          });
+          message.success(`Booking ${newStatus.toLowerCase()} successfully`);
+          fetchBookings();
+        } catch (error) {
+          console.error("Error updating booking status:", error);
+          message.error("Failed to update booking status");
+        } finally {
+          setUpdatingBookingId(null);
+        }
+      }
+    });
   };
 
   const showBookingDetails = (booking) => {
@@ -98,30 +110,46 @@ const BookingsList = () => {
   const filteredBookings = Array.isArray(bookings)
     ? bookings.filter((booking) => {
         const matchesSearch =
+          booking.user_details?.username
+            ?.toLowerCase()
+            .includes(searchText.toLowerCase()) ||
+          booking.user_details?.email
+            ?.toLowerCase()
+            .includes(searchText.toLowerCase()) ||
+          booking.user_details?.full_name
+            ?.toLowerCase()
+            .includes(searchText.toLowerCase()) ||
           booking.user?.username
             ?.toLowerCase()
             .includes(searchText.toLowerCase()) ||
           booking.user?.email
             ?.toLowerCase()
             .includes(searchText.toLowerCase()) ||
-          booking.tour?.title
+          booking.tour_details?.name
             ?.toLowerCase()
             .includes(searchText.toLowerCase()) ||
-          booking.tour_details?.name
+          booking.tour_name
+            ?.toLowerCase()
+            .includes(searchText.toLowerCase()) ||
+          booking.tour?.title
             ?.toLowerCase()
             .includes(searchText.toLowerCase());
         const matchesStatus =
           filterStatus === "all" ||
-          booking.status?.toLowerCase() === filterStatus.toLowerCase();
+          booking.status?.toUpperCase() === filterStatus.toUpperCase();
         return matchesSearch && matchesStatus;
       })
     : [];
 
   const getStatusColor = (status) => {
     const colors = {
+      CONFIRMED: "green",
       confirmed: "green",
+      PENDING: "orange", 
       pending: "orange",
+      CANCELLED: "red",
       cancelled: "red",
+      COMPLETED: "blue",
       completed: "blue",
     };
     return colors[status] || "default";
@@ -129,6 +157,7 @@ const BookingsList = () => {
 
   const getPaymentStatusColor = (status) => {
     const colors = {
+      success: "green",
       paid: "green",
       pending: "orange",
       failed: "red",
@@ -150,9 +179,16 @@ const BookingsList = () => {
       key: "customer",
       render: (_, record) => (
         <div>
-          <div style={{ fontWeight: "bold" }}>{record.user?.username}</div>
+          <div style={{ fontWeight: "bold" }}>
+            {record.user_details?.full_name || 
+             record.user_details?.username || 
+             record.user?.username || 
+             'N/A'}
+          </div>
           <div style={{ fontSize: "12px", color: "#666" }}>
-            {record.user?.email}
+            {record.user_details?.email || 
+             record.user?.email || 
+             'N/A'}
           </div>
         </div>
       ),
@@ -162,9 +198,16 @@ const BookingsList = () => {
       key: "tour",
       render: (_, record) => (
         <div>
-          <div style={{ fontWeight: "bold" }}>{record.tour?.title}</div>
+          <div style={{ fontWeight: "bold" }}>
+            {record.tour_details?.name || 
+             record.tour_name || 
+             record.tour?.title || 
+             'N/A'}
+          </div>
           <div style={{ fontSize: "12px", color: "#666" }}>
-            {record.tour?.duration_days} Days
+            {record.tour_details?.duration_days || 
+             record.tour?.duration_days || 
+             0} Days
           </div>
         </div>
       ),
@@ -178,10 +221,10 @@ const BookingsList = () => {
     },
     {
       title: "People",
-      dataIndex: "no_people",
-      key: "no_people",
+      key: "people",
       width: 80,
-      sorter: (a, b) => a.no_people - b.no_people,
+      render: (_, record) => record.travelers_count || record.no_people || 0,
+      sorter: (a, b) => (a.travelers_count || a.no_people || 0) - (b.travelers_count || b.no_people || 0),
     },
     {
       title: "Total Price",
@@ -198,20 +241,24 @@ const BookingsList = () => {
         <Tag color={getStatusColor(status)}>{status?.toUpperCase()}</Tag>
       ),
       filters: [
-        { text: "Confirmed", value: "confirmed" },
-        { text: "Pending", value: "pending" },
-        { text: "Cancelled", value: "cancelled" },
-        { text: "Completed", value: "completed" },
+        { text: "Confirmed", value: "CONFIRMED" },
+        { text: "Pending", value: "PENDING" },
+        { text: "Cancelled", value: "CANCELLED" },
+        { text: "Completed", value: "COMPLETED" },
       ],
       onFilter: (value, record) => record.status === value,
     },
     {
       title: "Payment",
-      dataIndex: "payment_status",
-      key: "payment_status",
-      render: (status) => (
-        <Tag color={getPaymentStatusColor(status)}>{status?.toUpperCase()}</Tag>
-      ),
+      key: "payment",
+      render: (_, record) => {
+        const paymentStatus = record.payment_details?.status || 'PENDING';
+        return (
+          <Tag color={getPaymentStatusColor(paymentStatus.toLowerCase())}>
+            {paymentStatus.toUpperCase()}
+          </Tag>
+        );
+      },
     },
     {
       title: "Actions",
@@ -227,13 +274,15 @@ const BookingsList = () => {
           >
             View
           </Button>
-          {record.status === "pending" && (
+          {record.status === "PENDING" && (
             <>
               <Button
                 type="primary"
                 size="small"
                 icon={<CheckCircleOutlined />}
-                onClick={() => handleStatusUpdate(record.id, "confirmed")}
+                loading={updatingBookingId === record.id}
+                onClick={() => handleStatusUpdate(record.id, "CONFIRMED")}
+                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
               >
                 Confirm
               </Button>
@@ -241,11 +290,23 @@ const BookingsList = () => {
                 danger
                 size="small"
                 icon={<CloseCircleOutlined />}
-                onClick={() => handleStatusUpdate(record.id, "cancelled")}
+                loading={updatingBookingId === record.id}
+                onClick={() => handleStatusUpdate(record.id, "CANCELLED")}
               >
                 Cancel
               </Button>
             </>
+          )}
+          {record.status === "CONFIRMED" && (
+            <Button
+              type="primary"
+              size="small"
+              loading={updatingBookingId === record.id}
+              onClick={() => handleStatusUpdate(record.id, "COMPLETED")}
+              style={{ backgroundColor: '#1890ff', borderColor: '#1890ff' }}
+            >
+              Complete
+            </Button>
           )}
         </Space>
       ),
@@ -290,10 +351,10 @@ const BookingsList = () => {
             onChange={setFilterStatus}
           >
             <Option value="all">All Status</Option>
-            <Option value="confirmed">Confirmed</Option>
-            <Option value="pending">Pending</Option>
-            <Option value="cancelled">Cancelled</Option>
-            <Option value="completed">Completed</Option>
+            <Option value="CONFIRMED">Confirmed</Option>
+            <Option value="PENDING">Pending</Option>
+            <Option value="CANCELLED">Cancelled</Option>
+            <Option value="COMPLETED">Completed</Option>
           </Select>
         </div>
 
@@ -329,19 +390,33 @@ const BookingsList = () => {
           <Descriptions bordered column={2}>
             <Descriptions.Item label="Customer" span={2}>
               <div>
-                <strong>{selectedBooking.user?.username}</strong>
+                <strong>
+                  {selectedBooking.user_details?.full_name || 
+                   selectedBooking.user_details?.username || 
+                   selectedBooking.user?.username || 
+                   'N/A'}
+                </strong>
                 <br />
                 <span style={{ color: "#666" }}>
-                  {selectedBooking.user?.email}
+                  {selectedBooking.user_details?.email || 
+                   selectedBooking.user?.email || 
+                   'N/A'}
                 </span>
               </div>
             </Descriptions.Item>
             <Descriptions.Item label="Tour" span={2}>
               <div>
-                <strong>{selectedBooking.tour?.title}</strong>
+                <strong>
+                  {selectedBooking.tour_details?.name || 
+                   selectedBooking.tour_name || 
+                   selectedBooking.tour?.title || 
+                   'N/A'}
+                </strong>
                 <br />
                 <span style={{ color: "#666" }}>
-                  Duration: {selectedBooking.tour?.duration_days} Days
+                  Duration: {selectedBooking.tour_details?.duration_days || 
+                            selectedBooking.tour?.duration_days || 
+                            0} Days
                 </span>
               </div>
             </Descriptions.Item>
@@ -352,7 +427,7 @@ const BookingsList = () => {
               {new Date(selectedBooking.travel_date).toLocaleDateString()}
             </Descriptions.Item>
             <Descriptions.Item label="Number of People">
-              {selectedBooking.no_people}
+              {selectedBooking.travelers_count || selectedBooking.no_people || 0}
             </Descriptions.Item>
             <Descriptions.Item label="Total Price">
               ₹{selectedBooking.total_price?.toLocaleString()}
@@ -364,10 +439,20 @@ const BookingsList = () => {
             </Descriptions.Item>
             <Descriptions.Item label="Payment Status">
               <Tag
-                color={getPaymentStatusColor(selectedBooking.payment_status)}
+                color={getPaymentStatusColor(
+                  selectedBooking.payment_details?.status?.toLowerCase() || 'pending'
+                )}
               >
-                {selectedBooking.payment_status?.toUpperCase()}
+                {selectedBooking.payment_details?.status?.toUpperCase() || 'PENDING'}
               </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Payment Method">
+              {selectedBooking.payment_details?.payment_method || 'Not specified'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Transaction ID" span={2}>
+              <span style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                {selectedBooking.payment_details?.transaction_id || 'N/A'}
+              </span>
             </Descriptions.Item>
           </Descriptions>
         )}

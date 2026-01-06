@@ -16,11 +16,13 @@ import {
   MailOutlined,
   EnvironmentOutlined,
   ClockCircleOutlined,
+  CheckCircleOutlined,
+  ArrowRightOutlined,
+  StarFilled,
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import { apiClient } from "../../services/api";
 
-import "./Home.css";
 import { endpoints } from "../../constant/ENDPOINTS";
 
 const Home = () => {
@@ -35,18 +37,18 @@ const Home = () => {
       {
         url: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=1920&q=80",
         title: "Discover Incredible India",
-        subtitle: "Experience the magic of diverse cultures and landscapes"
+        subtitle: "Experience the magic of diverse cultures and landscapes",
       },
       {
         url: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1920&q=80",
         title: "Adventure Awaits",
-        subtitle: "From mountain peaks to ocean depths, explore it all"
+        subtitle: "From mountain peaks to ocean depths, explore it all",
       },
       {
         url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
         title: "Serene Escapes",
-        subtitle: "Find your peace in the most beautiful destinations"
-      }
+        subtitle: "Find your peace in the most beautiful destinations",
+      },
     ]);
   }, []);
 
@@ -54,12 +56,12 @@ const Home = () => {
     try {
       setLoading(true);
       const response = await apiClient.get(endpoints.GET_ALL_TOURS);
-      console.log("Tours Response:", response.data);
-      const toursData = response?.data?.data || []
-      setTours(toursData);
+      // console.log("Tours Response:", response.data);
+      const toursData = response?.data?.data || [];
+      // Just take first 4 for home page
+      setTours(toursData.slice(0, 4));
     } catch (error) {
       console.error("Error fetching tours:", error);
-
     } finally {
       setLoading(false);
     }
@@ -78,24 +80,12 @@ const Home = () => {
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 30 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.5,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const cardVariants = {
-    hidden: { opacity: 0, scale: 0.95 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        duration: 0.4,
+        duration: 0.6,
         ease: "easeOut",
       },
     },
@@ -103,10 +93,8 @@ const Home = () => {
 
   if (loading) {
     return (
-      <div className="home-page">
-        <div className="loading-wrapper">
-          <Spin size="large" />
-        </div>
+      <div style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <Spin size="large" />
       </div>
     );
   }
@@ -114,30 +102,47 @@ const Home = () => {
   return (
     <div className="home-page">
       {/* Hero Carousel */}
-      <div className="hero-carousel">
+      <div className="hero-section">
         <Carousel autoplay autoplaySpeed={5000} effect="fade" dots>
           {carouselItems.map((item, index) => (
             <div key={index}>
               <div className="carousel-slide">
                 <img src={item.url} alt={item.title} />
                 <div className="carousel-overlay">
-                  <motion.div
-                    className="carousel-content"
-                    initial={{ opacity: 0, y: 50 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                  >
-                    <h1>{item.title}</h1>
-                    {item.subtitle && <p className="carousel-subtitle">{item.subtitle}</p>}
-                    <Button
-                      type="primary"
-                      size="large"
-                      className="carousel-cta"
-                      onClick={() => navigate("/tours")}
+                  <div className="carousel-content">
+                    <motion.h1
+                      initial={{ opacity: 0, y: -50 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.8, delay: 0.2 }}
                     >
-                      Explore Tours
-                    </Button>
-                  </motion.div>
+                      {item.title}
+                    </motion.h1>
+                    {item.subtitle && (
+                      <motion.p
+                        className="carousel-subtitle"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 1, delay: 0.5 }}
+                      >
+                        {item.subtitle}
+                      </motion.p>
+                    )}
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.5, delay: 0.8 }}
+                    >
+                      <Button
+                        type="primary"
+                        size="large"
+                        className="btn-primary-gradient"
+                        style={{ height: '50px', padding: '0 40px', fontSize: '1.2rem' }}
+                        onClick={() => navigate("/tours")}
+                      >
+                        Explore Tours
+                      </Button>
+                    </motion.div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -146,277 +151,369 @@ const Home = () => {
       </div>
 
       {/* Main Content */}
-      <div className="home-content">
+      <div style={{ background: 'var(--bg-secondary)', paddingBottom: 'var(--spacing-4xl)' }}>
+
         {/* Welcome Section */}
-        <section className="welcome-section">
-          <Row gutter={[32, 32]} align="middle">
-            <Col xs={24} md={12}>
+        <div className="section-wrapper container-xl" style={{ maxWidth: '1400px', margin: '0 auto', padding: 'var(--spacing-3xl) var(--spacing-xl)' }}>
+          <Row gutter={[64, 32]} align="middle">
+            <Col xs={24} lg={12}>
               <motion.div
-                className="welcome-text"
                 initial={{ opacity: 0, x: -50 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6 }}
+                transition={{ duration: 0.8 }}
               >
-                <h1>Welcome to Rima Tours & Travels</h1>
-                <p className="welcome-tagline">India ke rang "Rima" ke sang</p>
-                <p className="welcome-description">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                  <span style={{ width: '40px', height: '2px', background: 'var(--primary-color)' }}></span>
+                  <span style={{ color: 'var(--primary-color)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px' }}>About Us</span>
+                </div>
+                <h2 className="section-title" style={{ fontSize: '3rem', marginBottom: '1.5rem', lineHeight: 1.2 }}>
+                  Plan Your Trip with <span className="text-gradient">Rima Tours</span>
+                </h2>
+                <p className="font-lg text-secondary" style={{ marginBottom: '2rem' }}>
                   We offer the best tour packages and travel experiences across
                   India and around the world. Whether you're looking for a
                   family vacation, romantic getaway, or adventure tour, we've
                   got the perfect package for you.
                 </p>
+
+                <Row gutter={[16, 16]} style={{ marginBottom: '2rem' }}>
+                  {['Personalized Itineraries', 'Expert Guides', '750+ Destinations', '24/7 Support'].map((item, idx) => (
+                    <Col span={12} key={idx}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <CheckCircleOutlined style={{ color: 'var(--primary-color)' }} />
+                        <span style={{ fontWeight: 500 }}>{item}</span>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+
                 <Space size="large">
                   <Button
                     type="primary"
                     size="large"
+                    className="btn-primary-gradient"
                     onClick={() => navigate("/tours")}
                   >
-                    Explore Tours
+                    Start Your Journey
                   </Button>
                   <Button
                     type="default"
                     size="large"
+                    className="btn-secondary"
                     onClick={() => navigate("/customize-tour")}
                   >
-                    Customize Your Tour
+                    Customize Tour
                   </Button>
                 </Space>
               </motion.div>
             </Col>
-            <Col xs={24} md={12}>
-              <motion.img
-                src="https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=500&h=400&fit=crop"
-                alt="Travel"
-                className="welcome-image"
+            <Col xs={24} lg={12}>
+              <motion.div
+                style={{ position: 'relative' }}
                 initial={{ opacity: 0, x: 50 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6 }}
-                whileHover={{ scale: 1.02 }}
-              />
+                transition={{ duration: 0.8 }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '-20px',
+                  right: '-20px',
+                  width: '100px',
+                  height: '100px',
+                  border: '3px solid var(--primary-color)',
+                  borderRadius: 'var(--radius-lg)',
+                  zIndex: 0
+                }}></div>
+                <img
+                  src="https://images.unsplash.com/photo-1528127269322-539801943592?w=800&q=80"
+                  alt="Travel"
+                  style={{
+                    width: '100%',
+                    borderRadius: 'var(--radius-lg)',
+                    boxShadow: 'var(--shadow-xl)',
+                    position: 'relative',
+                    zIndex: 1
+                  }}
+                />
+                <div style={{
+                  position: 'absolute',
+                  bottom: '30px',
+                  left: '-30px',
+                  background: 'white',
+                  padding: '20px',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: 'var(--shadow-lg)',
+                  zIndex: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '15px'
+                }}>
+                  <div style={{
+                    width: '50px',
+                    height: '50px',
+                    background: 'var(--success-bg)',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--success-color)',
+                    fontSize: '1.5rem'
+                  }}>
+                    <StarFilled />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '1.2rem' }}>4.9/5</h4>
+                    <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Customer Reviews</p>
+                  </div>
+                </div>
+              </motion.div>
             </Col>
           </Row>
-        </section>
+        </div>
 
         {/* Stats Section */}
-        <motion.section
-          className="stats-section"
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={containerVariants}
-        >
+        <div className="stats-container">
           <Row gutter={[32, 32]} justify="center">
             <Col xs={12} sm={6}>
-              <motion.div variants={itemVariants}>
-                <Statistic
-                  title="Happy Travelers"
-                  value={5000}
-                  prefix="+"
-                />
+              <motion.div className="stat-item" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
+                <div className="stat-number">5k+</div>
+                <div className="stat-label">Happy Travelers</div>
               </motion.div>
             </Col>
             <Col xs={12} sm={6}>
-              <motion.div variants={itemVariants}>
-                <Statistic
-                  title="Tour Packages"
-                  value={150}
-                  prefix="+"
-                />
+              <motion.div className="stat-item" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
+                <div className="stat-number">150+</div>
+                <div className="stat-label">Tour Packages</div>
               </motion.div>
             </Col>
             <Col xs={12} sm={6}>
-              <motion.div variants={itemVariants}>
-                <Statistic
-                  title="Years Experience"
-                  value={15}
-                  prefix="+"
-                />
+              <motion.div className="stat-item" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3 }}>
+                <div className="stat-number">15+</div>
+                <div className="stat-label">Years Experience</div>
               </motion.div>
             </Col>
             <Col xs={12} sm={6}>
-              <motion.div variants={itemVariants}>
-                <Statistic
-                  title="Destinations"
-                  value={50}
-                  prefix="+"
-                />
+              <motion.div className="stat-item" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.4 }}>
+                <div className="stat-number">50+</div>
+                <div className="stat-label">Destinations</div>
               </motion.div>
             </Col>
           </Row>
-        </motion.section>
+        </div>
 
         {/* Popular Tours Section */}
-        <section className="tours-section">
-          <motion.div
-            className="section-header"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2>Popular Tour Packages</h2>
-            <p className="section-subtitle">
-              Check out our most popular and bestselling tour packages
-            </p>
-          </motion.div>
+        <div className="section-wrapper" style={{ maxWidth: '1400px', margin: '0 auto', padding: 'var(--spacing-3xl) var(--spacing-xl)' }}>
+          <div className="section-header-center">
+            <span style={{ color: 'var(--primary-color)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px' }}>Explore</span>
+            <h2 className="section-title">Popular Tour Packages</h2>
+            <p className="text-secondary">Check out our most popular and bestselling tour packages chosen by our customers.</p>
+          </div>
 
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: "-100px" }}
+            viewport={{ once: true, margin: "-50px" }}
             variants={containerVariants}
           >
-            <Row gutter={[24, 24]}>
-              {tours?.map((tour, index) => (
+            <Row gutter={[32, 32]}>
+              {tours?.length > 0 ? tours.map((tour, index) => (
                 <Col key={tour.id} xs={24} sm={12} lg={6}>
-                  <motion.div
-                    className="tour-card-wrapper"
-                    variants={cardVariants}
-                    whileHover={{
-                      y: -8,
-                      transition: { duration: 0.3 },
-                    }}
-                  >
+                  <motion.div variants={itemVariants} style={{ height: '100%' }}>
                     <Card
+                      className="custom-card"
+                      hoverable
                       cover={
-                        <div className="tour-image-wrapper">
+                        <div style={{ position: 'relative', overflow: 'hidden', height: '240px' }}>
                           <img
-                            src={tour.featured_image || `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&h=240&fit=crop`}
                             alt={tour.name}
+                            src={
+                              tour.featured_image ||
+                              `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&h=240&fit=crop`
+                            }
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           />
-                          <div className="tour-type-badge">{tour.category || "Tour"}</div>
+                          <div style={{
+                            position: 'absolute',
+                            top: '15px',
+                            right: '15px',
+                            background: 'rgba(255,255,255,0.9)',
+                            padding: '5px 10px',
+                            borderRadius: '20px',
+                            fontSize: '0.8rem',
+                            fontWeight: 'bold',
+                            color: 'var(--primary-color)'
+                          }}>
+                            {tour.category || "Hot Deal"}
+                          </div>
                         </div>
                       }
-                      hoverable
+                      bodyStyle={{ padding: '0', display: 'flex', flexDirection: 'column', height: 'calc(100% - 240px)' }}
                       onClick={() => navigate(`/tours/${tour.id}`)}
                     >
-                      <h3>{tour.name}</h3>
-                      <p className="tour-duration">
-                        <ClockCircleOutlined /> {tour.duration_days || "5"} Days
-                      </p>
-                      <p className="tour-description-text">
-                        {tour.description || "Explore amazing destinations"}
-                      </p>
-                      <div className="tour-card-footer">
-                        <span className="tour-price-text">
-                          ₹{tour.base_price || "15,000"}
-                        </span>
-                        <Button
-                          type="primary"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/tours/${tour.id}`);
-                          }}
-                        >
-                          View Details
-                        </Button>
+                      <div className="tour-card-content">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
+                          <ClockCircleOutlined /> {tour.duration_days || "5"} Days
+                          <span style={{ margin: '0 5px' }}>•</span>
+                          <EnvironmentOutlined /> {tour.location || "India"}
+                        </div>
+                        <h3 className="tour-title" style={{ height: '50px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                          {tour.name}
+                        </h3>
+
+                        <div className="tour-price-section">
+                          <div>
+                            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>From</span>
+                            <div className="tour-price">₹{tour.base_price?.toLocaleString() || "15,000"}</div>
+                          </div>
+                          <Button
+                            type="primary"
+                            shape="circle"
+                            icon={<ArrowRightOutlined />}
+                            className="btn-primary-gradient"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/tours/${tour.id}`);
+                            }}
+                          />
+                        </div>
                       </div>
                     </Card>
                   </motion.div>
                 </Col>
-              ))}
+              )) : (
+                <Col span={24} style={{ textAlign: 'center', padding: '50px 0' }}>
+                  <Spin />
+                  <p style={{ marginTop: '10px' }}>Loading amazing tours...</p>
+                </Col>
+              )}
             </Row>
+
+            <div style={{ textAlign: 'center', marginTop: '3rem' }}>
+              <Button size="large" onClick={() => navigate('/tours')} className="btn-secondary">View All Packages</Button>
+            </div>
           </motion.div>
-        </section>
+        </div>
 
         {/* Why Choose Us Section */}
-        <section className="why-choose-section">
-          <motion.div
-            className="section-header"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2>Why Choose Us?</h2>
-          </motion.div>
+        <div style={{ background: 'white', padding: 'var(--spacing-3xl) 0' }}>
+          <div className="container-xl" style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 var(--spacing-xl)' }}>
+            <div className="section-header-center">
+              <span style={{ color: 'var(--primary-color)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '2px' }}>Why Us</span>
+              <h2 className="section-title">Why Choose Rima Tours?</h2>
+            </div>
 
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={containerVariants}
-          >
             <Row gutter={[32, 32]}>
               {[
                 {
-                  title: "Best Prices",
-                  description: "Competitive pricing with no hidden charges",
+                  title: "Best Price Guarantee",
+                  description: "We ensure you get the best rates for your travel packages without compromising on quality.",
                   icon: "💰",
+                  color: "#ffe0df",
                 },
                 {
-                  title: "Expert Team",
-                  description:
-                    "Experienced travel consultants to plan your perfect trip",
+                  title: "Expert Travel Guides",
+                  description: "Our experienced guides ensure you have the most authentic and safe travel experience.",
                   icon: "👥",
+                  color: "#e0f2fe",
                 },
                 {
-                  title: "24/7 Support",
-                  description:
-                    "Round-the-clock customer support for all your needs",
+                  title: "24/7 Customer Support",
+                  description: "We are always available to assist you at any step of your journey, day or night.",
                   icon: "🛡️",
+                  color: "#dcfce7",
                 },
                 {
-                  title: "Customization",
-                  description:
-                    "Fully customizable packages tailored to your preferences",
+                  title: "100% Customizable",
+                  description: "Tailor your itinerary exactly how you want it. Your trip, your rules.",
                   icon: "✨",
+                  color: "#fef3c7",
                 },
               ].map((item, index) => (
                 <Col key={index} xs={24} sm={12} lg={6}>
                   <motion.div
-                    className="feature-card"
-                    variants={itemVariants}
-                    whileHover={{
-                      y: -4,
-                      transition: { duration: 0.2 },
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.1 }}
+                    whileHover={{ y: -10 }}
+                    style={{
+                      padding: '30px',
+                      background: 'white',
+                      borderRadius: 'var(--radius-lg)',
+                      border: '1px solid var(--border-color)',
+                      height: '100%',
+                      textAlign: 'center',
+                      transition: 'all 0.3s ease'
                     }}
                   >
-                    <span className="feature-icon">{item.icon}</span>
-                    <h3>{item.title}</h3>
-                    <p>{item.description}</p>
+                    <div style={{
+                      width: '80px',
+                      height: '80px',
+                      borderRadius: '50%',
+                      background: item.color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '2.5rem',
+                      margin: '0 auto 20px'
+                    }}>
+                      {item.icon}
+                    </div>
+                    <h3 style={{ fontSize: '1.25rem', marginBottom: '10px' }}>{item.title}</h3>
+                    <p style={{ color: 'var(--text-secondary)' }}>{item.description}</p>
                   </motion.div>
                 </Col>
               ))}
             </Row>
-          </motion.div>
-        </section>
+          </div>
+        </div>
 
         {/* Contact CTA Section */}
-        <motion.section
-          className="contact-cta-section"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}
-        >
-          <h2>Ready to Plan Your Dream Vacation?</h2>
-          <p>Get in touch with our travel experts today</p>
-          <div className="cta-buttons">
-            <Space direction="horizontal" size="large">
+        <div style={{
+          background: 'linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url("https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1920&q=80")',
+          backgroundAttachment: 'fixed',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          padding: 'var(--spacing-4xl) 0',
+          textAlign: 'center',
+          color: 'white'
+        }}>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            style={{ maxWidth: '800px', margin: '0 auto', padding: '0 20px' }}
+          >
+            <h2 style={{ color: 'white', fontSize: '3rem', marginBottom: '20px' }}>Ready to Plan Your Dream Vacation?</h2>
+            <p style={{ fontSize: '1.25rem', marginBottom: '40px', opacity: 0.9 }}>
+              Get in touch with our travel experts today and get a customized quote for your next adventure.
+            </p>
+            <Space direction="horizontal" size="large" wrap>
               <Button
                 type="primary"
                 size="large"
                 icon={<PhoneOutlined />}
                 href="tel:+919876543210"
-                ghost
+                className="btn-primary-gradient"
+                style={{ height: '50px', padding: '0 30px' }}
               >
-                Call Us
+                Call Us Now
               </Button>
               <Button
-                type="primary"
                 size="large"
                 icon={<MailOutlined />}
                 href="mailto:info@rimatoursandtravels.com"
                 ghost
+                style={{ height: '50px', padding: '0 30px', border: '2px solid white', color: 'white' }}
               >
                 Email Us
               </Button>
             </Space>
-          </div>
-        </motion.section>
+          </motion.div>
+        </div>
       </div>
     </div>
   );

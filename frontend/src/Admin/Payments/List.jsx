@@ -104,10 +104,13 @@ const PaymentsList = () => {
 
   const filteredPayments = Array.isArray(payments) ? payments.filter((payment) => {
     const matchesSearch =
+      payment.booking_details?.user_email?.toLowerCase().includes(searchText.toLowerCase()) ||
+      payment.booking_details?.tour_name?.toLowerCase().includes(searchText.toLowerCase()) ||
       payment.booking?.user?.username?.toLowerCase().includes(searchText.toLowerCase()) ||
       payment.booking?.user?.email?.toLowerCase().includes(searchText.toLowerCase()) ||
       payment.booking?.tour?.name?.toLowerCase().includes(searchText.toLowerCase()) ||
       payment.transaction_id?.toLowerCase().includes(searchText.toLowerCase()) ||
+      payment.booking_details?.id?.toString().includes(searchText) ||
       payment.booking?.id?.toString().includes(searchText);
     const matchesMethod = filterMethod === 'all' || payment.payment_method === filterMethod;
     return matchesSearch && matchesMethod;
@@ -130,10 +133,14 @@ const PaymentsList = () => {
       render: (_, record) => (
         <div>
           <div style={{ fontWeight: 'bold' }}>
-            {record.booking?.user?.username || 'N/A'}
+            {record.booking_details?.user_email?.split('@')[0] || 
+             record.booking?.user?.username || 
+             'N/A'}
           </div>
           <div style={{ fontSize: '12px', color: '#666' }}>
-            {record.booking?.user?.email || 'N/A'}
+            {record.booking_details?.user_email || 
+             record.booking?.user?.email || 
+             'N/A'}
           </div>
         </div>
       ),
@@ -145,10 +152,14 @@ const PaymentsList = () => {
       render: (_, record) => (
         <div>
           <div style={{ fontWeight: 'bold' }}>
-            {record.booking?.tour?.name || 'N/A'}
+            {record.booking_details?.tour_name || 
+             record.booking?.tour?.name || 
+             'N/A'}
           </div>
           <div style={{ fontSize: '12px', color: '#666' }}>
-            Booking #{record.booking?.id}
+            Booking #{record.booking_details?.id || 
+                      record.booking?.id || 
+                      'N/A'}
           </div>
         </div>
       ),

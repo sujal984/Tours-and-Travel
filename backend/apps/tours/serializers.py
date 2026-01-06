@@ -12,27 +12,31 @@ from .models import (
 
 
 class SeasonSerializer(serializers.ModelSerializer):
-    """Serializer for Season model"""
+    """Serializer for Season model with date ranges"""
+    date_range_display = serializers.ReadOnlyField()
     
     class Meta:
         model = Season
         fields = [
-            'id', 'name', 'start_month', 'end_month', 'description', 
-            'is_active', 'created_at', 'updated_at'
+            'id', 'name', 'start_month', 'end_month', 'start_date', 'end_date',
+            'date_range_display', 'description', 'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
 class TourPricingSerializer(serializers.ModelSerializer):
-    """Serializer for TourPricing model"""
+    """Serializer for TourPricing model with detailed breakdown"""
     tour_name = serializers.CharField(source='tour.name', read_only=True)
     season_name = serializers.CharField(source='season.name', read_only=True)
+    season_date_range = serializers.CharField(source='season.date_range_display', read_only=True)
     
     class Meta:
         model = TourPricing
         fields = [
-            'id', 'tour', 'tour_name', 'season', 'season_name',
-            'price', 'description', 'created_at', 'updated_at'
+            'id', 'tour', 'tour_name', 'season', 'season_name', 'season_date_range',
+            'two_sharing_price', 'three_sharing_price', 'child_price', 
+            'available_dates', 'includes_return_air', 'price', 'description', 
+            'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
@@ -66,14 +70,30 @@ class DestinationSerializer(serializers.ModelSerializer):
 class HotelSerializer(serializers.ModelSerializer):
     """Serializer for Hotel model"""
     destination_name = serializers.CharField(source='destination.name', read_only=True)
+    destination_display = serializers.SerializerMethodField()
     
     class Meta:
         model = Hotel
         fields = [
-            'id', 'destination', 'destination_name', 'name', 'address', 'image', 
-            'hotel_type', 'star_rating', 'is_active', 'created_at', 'updated_at'
+            'id', 'destination', 'destination_name', 'destination_display', 'name', 
+            'address', 'image', 'hotel_type', 'star_rating', 'is_active', 
+            'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'destination_name', 'created_at', 'updated_at']
+
+    def get_destination_display(self, obj):
+        """Get formatted destination display"""
+        if obj.destination:
+            return f"{obj.destination.name} ({obj.destination.country})" if obj.destination.country else obj.destination.name
+        return "N/A"
+
+    def validate_star_rating(self, value):
+        """Validate star rating"""
+        if value is not None and (value < 1 or value > 5):
+            raise serializers.ValidationError(
+                "Star rating must be between 1 and 5"
+            )
+        return value
 
 
 class TourPackageSerializer(serializers.ModelSerializer):
@@ -94,41 +114,96 @@ class TourPackageSerializer(serializers.ModelSerializer):
 
 class TourListSerializer(serializers.ModelSerializer):
     """Serializer for Tour list view (minimal data)"""
-    destination_name = serializers.CharField(source='destination.name', read_only=True)
+    primary_destination_name = serializers.CharField(source='primary_destination.name', read_only=True)
+    destination_names = serializers.ReadOnlyField()
     average_rating = serializers.ReadOnlyField()
     review_count = serializers.ReadOnlyField()
     available_capacity = serializers.ReadOnlyField()
+    current_price = serializers.SerializerMethodField()
+    seasonal_pricings = TourPricingSerializer(many=True, read_only=True)
     
     class Meta:
         model = Tour
         fields = [
-            'id', 'name', 'slug', 'destination_name', 'duration_days',
-            'max_capacity', 'base_price', 'featured_image', 'difficulty_level',
+            'id', 'name', 'slug', 'primary_destination_name', 'destination_names',
+            'duration_days', 'max_capacity', 'base_price', 'current_price', 
+            'seasonal_pricings', 'featured_image', 'difficulty_level',
             'category', 'average_rating', 'review_count', 'available_capacity',
             'is_active', 'created_at'
         ]
 
+    def get_current_price(self, obj):
+        """Get current price based on season"""
+        return obj.get_current_price()
+
 
 class TourDetailSerializer(serializers.ModelSerializer):
     """Serializer for Tour detail view (complete data)"""
-    destination = DestinationSerializer(read_only=True)
-    destination_id = serializers.UUIDField(write_only=True)
+    primary_destination = DestinationSerializer(read_only=True)
+    destinations = DestinationSerializer(many=True, read_only=True)
+    primary_destination_id = serializers.UUIDField(write_only=True)
+    destination_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        write_only=True,
+        required=False
+    )
     packages = TourPackageSerializer(many=True, read_only=True)
+    seasonal_pricings = TourPricingSerializer(many=True, read_only=True)
     average_rating = serializers.ReadOnlyField()
     review_count = serializers.ReadOnlyField()
     available_capacity = serializers.ReadOnlyField()
+    destination_names = serializers.ReadOnlyField()
+    current_price = serializers.SerializerMethodField()
     
     class Meta:
         model = Tour
         fields = [
-            'id', 'name', 'slug', 'description', 'destination', 'destination_id',
+            'id', 'name', 'slug', 'description', 'primary_destination', 'destinations',
+            'primary_destination_id', 'destination_ids', 'destination_names',
             'duration_days', 'max_capacity', 'available_capacity', 'base_price',
-            'featured_image', 'gallery_images', 'inclusions', 'exclusions',
-            'itinerary', 'difficulty_level', 'category', 'packages',
-            'average_rating', 'review_count', 'is_active',
+            'current_price', 'featured_image', 'gallery_images', 
+            'inclusions', 'exclusions', 'itinerary', 'difficulty_level', 'category', 
+            'packages', 'seasonal_pricings', 'average_rating', 'review_count', 'is_active',
+            'hotel_details', 'vehicle_details', 'pricing_details', 'special_notes',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'slug', 'created_at', 'updated_at']
+
+    def get_current_price(self, obj):
+        """Get current price based on season"""
+        return obj.get_current_price()
+
+    def create(self, validated_data):
+        """Create tour with multiple destinations"""
+        destination_ids = validated_data.pop('destination_ids', [])
+        primary_destination_id = validated_data.pop('primary_destination_id', None)
+        
+        # Set primary destination
+        if primary_destination_id:
+            validated_data['primary_destination_id'] = primary_destination_id
+            
+        tour = super().create(validated_data)
+        
+        if destination_ids:
+            tour.destinations.set(destination_ids)
+        
+        return tour
+
+    def update(self, instance, validated_data):
+        """Update tour with multiple destinations"""
+        destination_ids = validated_data.pop('destination_ids', None)
+        primary_destination_id = validated_data.pop('primary_destination_id', None)
+        
+        # Set primary destination
+        if primary_destination_id:
+            validated_data['primary_destination_id'] = primary_destination_id
+            
+        tour = super().update(instance, validated_data)
+        
+        if destination_ids is not None:
+            tour.destinations.set(destination_ids)
+        
+        return tour
 
     def validate_gallery_images(self, value):
         """Validate gallery images format"""
@@ -196,11 +271,12 @@ class OfferSerializer(serializers.ModelSerializer):
     """Serializer for Offer model"""
     is_valid = serializers.ReadOnlyField()
     applicable_tours_count = serializers.SerializerMethodField()
+    discount_display = serializers.SerializerMethodField()
     
     class Meta:
         model = Offer
         fields = [
-            'id', 'name', 'description', 'discount_percentage',
+            'id', 'name', 'description', 'discount_percentage', 'discount_display',
             'start_date', 'end_date', 'is_active', 'is_valid',
             'applicable_tours_count', 'created_at', 'updated_at'
         ]
@@ -209,6 +285,18 @@ class OfferSerializer(serializers.ModelSerializer):
     def get_applicable_tours_count(self, obj):
         """Get count of applicable tours"""
         return obj.applicable_tours.count()
+
+    def get_discount_display(self, obj):
+        """Get formatted discount display with % symbol"""
+        return f"{obj.discount_percentage}%"
+
+    def validate_discount_percentage(self, value):
+        """Validate discount percentage"""
+        if value < 0 or value > 100:
+            raise serializers.ValidationError(
+                "Discount percentage must be between 0 and 100"
+            )
+        return value
 
     def validate(self, data):
         """Validate offer dates"""

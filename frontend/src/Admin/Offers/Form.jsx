@@ -1,29 +1,103 @@
-import React, { useEffect } from "react";
-import { Modal, Form, Input, Switch } from "antd";
+import React, { useEffect, useState } from "react";
+import { Modal, Form, Input, Switch, DatePicker, Select, message, InputNumber } from "antd";
 import { apiClient } from "../../services/api";
 import { endpoints } from "../../constant/ENDPOINTS";
+import dayjs from "dayjs";
+
+const { RangePicker } = DatePicker;
+const { TextArea } = Input;
 
 const OfferForm = ({ visible, onClose, onSaved, initialValues = null }) => {
   const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [tours, setTours] = useState([]);
 
   useEffect(() => {
-    if (initialValues) form.setFieldsValue(initialValues);
-    else form.resetFields();
-  }, [initialValues]);
+    if (visible) {
+      fetchTours();
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (initialValues) {
+      const formValues = {
+        ...initialValues,
+        date_range: initialValues.start_date && initialValues.end_date 
+          ? [dayjs(initialValues.start_date), dayjs(initialValues.end_date)]
+          : null,
+        applicable_tours: initialValues.applicable_tours || []
+      };
+      form.setFieldsValue(formValues);
+    } else {
+      form.resetFields();
+    }
+  }, [initialValues, form]);
+
+  const fetchTours = async () => {
+    try {
+      const response = await apiClient.get(endpoints.GET_ALL_TOURS);
+      const toursData = response.data?.data || response.data?.results || response.data || [];
+      setTours(toursData);
+    } catch (error) {
+      console.error("Failed to fetch tours:", error);
+      message.error("Failed to load tours");
+    }
+  };
 
   const handleOk = async () => {
     try {
+      setLoading(true);
       const values = await form.validateFields();
+      
+      // Transform the data for API
+      const payload = {
+        name: values.name,
+        description: values.description || "",
+        discount_percentage: values.discount_percentage,
+        start_date: values.date_range[0].format('YYYY-MM-DD'),
+        end_date: values.date_range[1].format('YYYY-MM-DD'),
+        is_active: values.is_active !== false,
+        applicable_tours: values.applicable_tours || []
+      };
+
       if (initialValues && initialValues.id) {
-        await apiClient.put(endpoints.GET_OFFER_DETAIL(initialValues.id), values);
+        await apiClient.put(endpoints.GET_OFFER_DETAIL(initialValues.id), payload);
+        message.success("Offer updated successfully!");
       } else {
-        await apiClient.post(endpoints.GET_OFFERS, values);
+        await apiClient.post(endpoints.GET_OFFERS, payload);
+        message.success("Offer created successfully!");
       }
+      
       onSaved();
       onClose();
+      form.resetFields();
     } catch (err) {
-      console.error(err);
+      console.error("Error saving offer:", err);
+      if (err.response?.data?.errors) {
+        // Handle validation errors
+        const errors = err.response.data.errors;
+        Object.keys(errors).forEach(field => {
+          form.setFields([{
+            name: field,
+            errors: Array.isArray(errors[field]) ? errors[field] : [errors[field]]
+          }]);
+        });
+      } else {
+        message.error("Failed to save offer. Please try again.");
+      }
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const validateDiscountPercentage = (_, value) => {
+    if (value === null || value === undefined) {
+      return Promise.reject(new Error('Please enter discount percentage'));
+    }
+    if (value < 0 || value > 100) {
+      return Promise.reject(new Error('Discount percentage must be between 0 and 100'));
+    }
+    return Promise.resolve();
   };
 
   return (
@@ -32,24 +106,94 @@ const OfferForm = ({ visible, onClose, onSaved, initialValues = null }) => {
       open={visible}
       onCancel={onClose}
       onOk={handleOk}
+      confirmLoading={loading}
       destroyOnClose
+      width={600}
     >
       <Form
         form={form}
         layout="vertical"
-        initialValues={initialValues || { active: true }}
+        initialValues={{ is_active: true }}
       >
-        <Form.Item name="code" label="Code" rules={[{ required: true }]}>
-          <Input />
-        </Form.Item>
-        <Form.Item
-          name="discount_percent"
-          label="Discount Percent"
-          rules={[{ required: true }]}
+        <Form.Item 
+          name="name" 
+          label="Offer Name" 
+          rules={[
+            { required: true, message: 'Please enter offer name' },
+            { min: 3, message: 'Offer name must be at least 3 characters' }
+          ]}
         >
-          <Input type="number" />
+          <Input placeholder="e.g., Summer Special Discount" />
         </Form.Item>
-        <Form.Item name="active" label="Active" valuePropName="checked">
+
+        <Form.Item 
+          name="description" 
+          label="Description"
+        >
+          <TextArea 
+            rows={3} 
+            placeholder="Describe the offer details..."
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="discount_percentage"
+          label="Discount Percentage (%)"
+          rules={[
+            { required: true, message: 'Please enter discount percentage' },
+            { validator: validateDiscountPercentage }
+          ]}
+          extra="Enter a number between 0 and 100 (e.g., 10 for 10% discount)"
+        >
+          <InputNumber
+            min={0}
+            max={100}
+            precision={2}
+            style={{ width: '100%' }}
+            placeholder="10"
+            addonAfter="%"
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="date_range"
+          label="Validity Period"
+          rules={[{ required: true, message: 'Please select validity period' }]}
+        >
+          <RangePicker 
+            style={{ width: '100%' }}
+            format="YYYY-MM-DD"
+            placeholder={['Start Date', 'End Date']}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="applicable_tours"
+          label="Applicable Tours"
+          extra="Select tours where this offer can be applied. Leave empty to apply to all tours."
+        >
+          <Select
+            mode="multiple"
+            placeholder="Select tours..."
+            allowClear
+            showSearch
+            filterOption={(input, option) =>
+              option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+            }
+          >
+            {tours.map(tour => (
+              <Select.Option key={tour.id} value={tour.id}>
+                {tour.name}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
+
+        <Form.Item 
+          name="is_active" 
+          label="Active" 
+          valuePropName="checked"
+        >
           <Switch />
         </Form.Item>
       </Form>

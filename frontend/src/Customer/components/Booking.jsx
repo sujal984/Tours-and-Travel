@@ -16,21 +16,23 @@ import {
   Space,
   Typography,
   Alert,
+  Spin,
 } from "antd";
-import { 
-  ShoppingCartOutlined, 
-  UserOutlined, 
+import {
+  ShoppingCartOutlined,
+  UserOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
   InfoCircleOutlined,
+  CreditCardOutlined,
+  LockOutlined,
+  ArrowLeftOutlined,
+  ArrowRightOutlined
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import Navbar from "./Navbar";
-import Footer from "./Footer";
-import InquiryButton from "./InquiryButton";
 import { useUser } from "../../context/userContext";
 import { useParams, useNavigate } from "react-router-dom";
-import "./Booking.css";
+import { motion } from "framer-motion";
 
 import { apiClient } from "../../services/api";
 import { endpoints } from "../../constant/ENDPOINTS";
@@ -42,7 +44,6 @@ const Booking = () => {
   const { tourId } = useParams();
   const { user } = useUser();
   const navigate = useNavigate();
-  const [bookingForm] = Form.useForm();
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [tourData, setTourData] = useState(null);
@@ -60,10 +61,6 @@ const Booking = () => {
   }, [tourId]);
 
   useEffect(() => {
-    console.log('Tour data state changed:', tourData);
-  }, [tourData]);
-
-  useEffect(() => {
     if (tourData) {
       setTotalPrice(tourData.price * numberOfPassengers);
     }
@@ -72,630 +69,392 @@ const Booking = () => {
   const fetchTourData = async () => {
     try {
       const res = await apiClient.get(endpoints.GET_TOUR_DETAIL(tourId));
-      console.log('Booking Tour API Response:', res.data); // Debug log
-      
-      // Extract tour data from the API response structure
-      const t = res.data.data || res.data; // Handle both response formats
-      console.log('Extracted Tour Data:', t); // Debug log
-      
-      if (!t || !t.id) {
-        throw new Error('Invalid tour data received');
-      }
-      
+      const t = res.data.data || res.data;
+
+      if (!t || !t.id) throw new Error("Invalid tour data received");
+
       const tourInfo = {
         id: t.id,
-        name: t.name, // Backend uses 'name' not 'title'
-        price: t.base_price || 0, // Backend uses 'base_price'
-        duration: `${t.duration_days || 1} Days`, // Backend uses 'duration_days'
-        destination: t.destination?.name || "Unknown",
-        image: t.featured_image ? 
-          (t.featured_image.startsWith('http') ? t.featured_image : `http://127.0.0.1:8000${t.featured_image}`) :
-          "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&q=80",
+        name: t.name,
+        price: t.current_price || t.base_price || 0,
+        base_price: t.base_price || 0,
+        seasonal_prices: t.seasonal_prices || [],
+        duration: `${t.duration_days || 1} Days`,
+        duration_days: t.duration_days || 1,
+        destination: t.destination_names || t.primary_destination?.name || "Unknown",
+        destinations: t.destinations || [],
+        image: t.featured_image
+          ? t.featured_image.startsWith("http")
+            ? t.featured_image
+            : `http://127.0.0.1:8000${t.featured_image}`
+          : "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&q=80",
         max_capacity: t.max_capacity || 10,
         category: t.category,
-        difficulty_level: t.difficulty_level,
       };
-      
-      console.log('Processed Tour Info:', tourInfo); // Debug log
+
       setTourData(tourInfo);
     } catch (error) {
       console.error("Failed to fetch tour details:", error);
       message.error("Failed to fetch tour details");
-      // Set dummy data for development
-      setTourData({
-        id: tourId,
-        name: "Sample Adventure Tour",
-        price: 25000,
-        duration: "7 Days",
-        destination: "Sikkim",
-        image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&q=80",
-        max_capacity: 15,
-        category: "ADVENTURE",
-        difficulty_level: "MODERATE",
-      });
+      setTourLoading(false);
+      // Fallback or navigate back
+      navigate('/tours');
+    } finally {
+      setTourLoading(false);
     }
   };
 
   const handleNumberOfPassengersChange = (value) => {
-    setNumberOfPassengers(value || 1);
-    setPassengers(
-      Array(value || 1)
-        .fill(null)
-        .map((_, i) => passengers[i] || {})
-    );
+    const val = value || 1;
+    setNumberOfPassengers(val);
+    // Initialize passengers array if increasing count
+    const newPassengers = [...passengers];
+    if (val > newPassengers.length) {
+      for (let i = newPassengers.length; i < val; i++) {
+        newPassengers.push({});
+      }
+    } else {
+      newPassengers.splice(val);
+    }
+    setPassengers(newPassengers);
   };
 
-  const onFinishBooking = async (values) => {
+  // Ensure passengers array is initialized correctly on load
+  useEffect(() => {
+    if (numberOfPassengers > 0 && passengers.length === 0) {
+      setPassengers(Array(numberOfPassengers).fill({}));
+    }
+  }, [numberOfPassengers]);
+
+
+  const onFinishBooking = async () => {
     if (currentStep === 0) {
-      // Step 1: Travel Details
-      if (numberOfPassengers < 1) {
-        message.error("Please select at least 1 traveler");
-        return;
-      }
-      if (!travelDate) {
-        message.error("Please select travel date");
-        return;
-      }
+      if (numberOfPassengers < 1) return message.error("Please select at least 1 traveler");
+      if (!travelDate) return message.error("Please select travel date");
       setCurrentStep(1);
     } else if (currentStep === 1) {
-      // Step 2: Traveler Information
-      const hasEmptyPassenger = passengers.some(p => !p.name || !p.age);
-      if (hasEmptyPassenger) {
-        message.error("Please fill in all traveler details");
-        return;
-      }
+      const hasEmptyPassenger = passengers.slice(0, numberOfPassengers).some((p) => !p.name || !p.age);
+      if (hasEmptyPassenger) return message.error("Please fill in all traveler details");
       setCurrentStep(2);
     } else if (currentStep === 2) {
-      // Step 3: Contact & Preferences
-      if (!contactDetails.phone) {
-        message.error("Please provide contact number");
-        return;
-      }
+      if (!contactDetails.phone) return message.error("Please provide contact number");
       setCurrentStep(3);
     } else {
-      // Step 4: Show payment modal
       setPaymentModalVisible(true);
     }
   };
 
-  const handlePayment = async (paymentValues) => {
+  const handlePayment = async () => {
     setLoading(true);
     try {
-      // Validate user is authenticated
       if (!user) {
-        message.error('Please log in to make a booking');
         setLoading(false);
-        return;
+        return message.error("Please log in to make a booking");
       }
 
-      // Validate tour exists first
-      if (!tourData || !tourData.id) {
-        console.error('Tour data validation failed:', { tourData });
-        throw new Error('Tour data not available. Please refresh the page and try again.');
-      }
+      if (!tourData || !tourData.id) throw new Error("Tour data not available.");
 
-      // Validate required data
-      if (!travelDate) {
-        message.error('Please select a travel date');
-        setLoading(false);
-        return;
-      }
-
-      if (passengers.length === 0 || passengers.some(p => !p.name || !p.age)) {
-        message.error('Please fill in all traveler details');
-        setLoading(false);
-        return;
-      }
-
-      if (!contactDetails.phone) {
-        message.error('Please provide a contact number');
-        setLoading(false);
-        return;
-      }
-
-      // Create booking first
       const bookingData = {
-        tour: tourId, // Keep as string UUID, don't convert to int
+        tour: tourId,
         travelers_count: numberOfPassengers,
-        travel_date: travelDate.format('YYYY-MM-DD'),
-        traveler_details: passengers.map(p => ({
-          name: p.name || '',
-          age: parseInt(p.age) || 0
-        })).filter(p => p.name && p.age), // Filter out invalid entries
-        contact_number: contactDetails.phone || '',
-        emergency_contact: contactDetails.emergency_contact || '',
-        special_requests: contactDetails.special_requests || '',
+        travel_date: travelDate.format("YYYY-MM-DD"),
+        traveler_details: passengers.slice(0, numberOfPassengers).map(p => ({
+          name: p.name,
+          age: parseInt(p.age)
+        })),
+        contact_number: contactDetails.phone || "",
+        emergency_contact: contactDetails.emergency_contact || "",
+        special_requests: contactDetails.special_requests || "",
       };
-      
-      console.log('Creating booking:', bookingData);
-      
+
       const bookingResponse = await apiClient.post(endpoints.CREATE_BOOKING, bookingData);
-      console.log('Booking created:', bookingResponse.data);
-      
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Create payment record (if payment endpoint exists)
+
+      // Simulate Payment
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       try {
         const paymentData = {
           booking: bookingResponse.data.data?.id || bookingResponse.data.id,
           amount: totalPrice,
-          payment_method: 'CREDIT_CARD',
-          status: 'SUCCESS'
+          payment_method: "CREDIT_CARD",
+          status: "SUCCESS",
         };
-        
         await apiClient.post(endpoints.CREATE_PAYMENT, paymentData);
-      } catch (paymentError) {
-        console.warn('Payment record creation failed (non-critical):', paymentError);
+      } catch (err) {
+        console.warn("Payment log failed");
       }
-      
-      message.success("Booking confirmed and payment processed successfully!");
+
+      message.success("Booking confirmed successfully!");
       setPaymentModalVisible(false);
-      
-      // Navigate to bookings page
-      setTimeout(() => {
-        navigate('/my-bookings');
-      }, 2000);
-      
+      navigate("/my-bookings");
     } catch (error) {
-      console.error("Booking/Payment error:", error);
-      
-      // Show more specific error messages
-      if (error.response?.data?.errors) {
-        const errorMessages = Object.entries(error.response.data.errors)
-          .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
-          .join('\n');
-        message.error(`Booking failed:\n${errorMessages}`);
-      } else if (error.response?.data?.message) {
-        message.error(`Booking failed: ${error.response.data.message}`);
-      } else {
-        message.error("Failed to process booking. Please try again.");
-      }
+      console.error("Booking error:", error);
+      message.error("Failed to process booking. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const passengerColumns = [
-    {
-      title: "Passenger #",
-      dataIndex: "number",
-      key: "number",
-      width: 100,
-      render: (_, __, index) => index + 1,
-    },
-    {
-      title: "Name",
-      dataIndex: "name",
-      key: "name",
-      render: (_, __, index) => (
-        <Input
-          placeholder="Full Name"
-          value={passengers[index]?.name || ""}
-          onChange={(e) => {
-            const newPassengers = [...passengers];
-            newPassengers[index] = {
-              ...newPassengers[index],
-              name: e.target.value,
-            };
-            setPassengers(newPassengers);
-          }}
-        />
-      ),
-    },
-    {
-      title: "Age",
-      dataIndex: "age",
-      key: "age",
-      width: 80,
-      render: (_, __, index) => (
-        <InputNumber
-          placeholder="Age"
-          min={1}
-          max={120}
-          value={passengers[index]?.age || null}
-          onChange={(value) => {
-            const newPassengers = [...passengers];
-            newPassengers[index] = { ...newPassengers[index], age: value };
-            setPassengers(newPassengers);
-          }}
-          style={{ width: "100%" }}
-        />
-      ),
-    },
+  const steps = [
+    { title: "Details", icon: <CalendarOutlined /> },
+    { title: "Travelers", icon: <UserOutlined /> },
+    { title: "Contact", icon: <InfoCircleOutlined /> },
+    { title: "Review", icon: <CheckCircleOutlined /> },
   ];
 
-  const steps = [
-    {
-      title: 'Travel Details',
-      description: 'Select date and travelers',
-      icon: <CalendarOutlined />,
-    },
-    {
-      title: 'Traveler Information',
-      description: 'Enter traveler details',
-      icon: <UserOutlined />,
-    },
-    {
-      title: 'Contact & Preferences',
-      description: 'Contact info and special requests',
-      icon: <InfoCircleOutlined />,
-    },
-    {
-      title: 'Review & Payment',
-      description: 'Review and complete booking',
-      icon: <CheckCircleOutlined />,
-    },
-  ];
+  if (tourLoading) return <div style={{ height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}><Spin size="large" /></div>;
 
   return (
-    <div className="booking-page">
-     
+    <div style={{ background: 'var(--bg-secondary)', minHeight: '100vh', padding: 'var(--spacing-3xl) 0' }}>
+      <div className="container-xl" style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 var(--spacing-xl)' }}>
 
-      <div className="booking-container">
-        {/* Header */}
-        <section className="booking-header">
-          <h1>Complete Your Booking</h1>
-          <p>Reserve your dream tour today!</p>
-        </section>
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{ marginBottom: '30px', textAlign: 'center' }}
+        >
+          <h1 style={{ marginBottom: '10px' }}>Secure Your Booking</h1>
+          <p style={{ color: 'var(--text-secondary)' }}>You're just a few steps away from your adventure to {tourData?.destination}</p>
+        </motion.div>
 
-        <Row gutter={[32, 32]}>
-          {/* Steps */}
-          <Col xs={24}>
-            <Card className="steps-card">
-              <Steps current={currentStep} items={steps} />
-            </Card>
-          </Col>
-
-          {/* Main Content */}
+        <Row gutter={[40, 40]}>
           <Col xs={24} lg={16}>
-            <Card className="booking-form-card">
-              {currentStep === 0 && (
-                <div className="booking-step">
-                  <Title level={3}>Travel Details</Title>
-                  <Alert
-                    message="Select your travel date and number of travelers"
-                    type="info"
-                    showIcon
-                    style={{ marginBottom: 24 }}
-                  />
-                  
-                  <Form layout="vertical" size="large">
-                    <Row gutter={24}>
-                      <Col xs={24} md={12}>
-                        <Form.Item
-                          label="Travel Date"
-                          required
-                        >
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Card className="card" bodyStyle={{ padding: '30px' }}>
+                <Steps current={currentStep} items={steps} style={{ marginBottom: '40px' }} />
+
+                <div style={{ minHeight: '300px' }}>
+                  {currentStep === 0 && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                      <Title level={4}>Travel Details</Title>
+                      <Divider />
+                      <Row gutter={[24, 24]}>
+                        <Col xs={24} md={12}>
+                          <div style={{ marginBottom: '10px', fontWeight: 500 }}>Travel Date</div>
                           <DatePicker
-                            style={{ width: "100%" }}
-                            placeholder="Select travel date"
+                            style={{ width: "100%", height: '45px', borderRadius: 'var(--radius-md)' }}
                             value={travelDate}
                             onChange={setTravelDate}
-                            disabledDate={(current) => {
-                              return current && current < dayjs().add(1, 'day').startOf('day');
-                            }}
+                            disabledDate={(current) => current && current < dayjs().add(1, "day")}
                           />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item
-                          label="Number of Travelers"
-                          required
-                        >
+                        </Col>
+                        <Col xs={24} md={12}>
+                          <div style={{ marginBottom: '10px', fontWeight: 500 }}>Travelers</div>
                           <InputNumber
-                            min={1}
-                            max={20}
+                            min={1} max={20}
                             value={numberOfPassengers}
                             onChange={handleNumberOfPassengersChange}
-                            style={{ width: "100%" }}
-                            placeholder="Select number of travelers"
-                            defaultValue={1}
+                            style={{ width: "100%", height: '45px', borderRadius: 'var(--radius-md)', paddingTop: '5px' }}
                           />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-
-                    <Button
-                      type="primary"
-                      block
-                      size="large"
-                      onClick={() => onFinishBooking({})}
-                    >
-                      Next: Enter Traveler Details
-                    </Button>
-                  </Form>
-                </div>
-              )}
-
-              {currentStep === 1 && (
-                <div className="booking-step">
-                  <Title level={3}>Traveler Information</Title>
-                  <Text type="secondary" style={{ display: 'block', marginBottom: 24 }}>
-                    Please enter details for all {numberOfPassengers} traveler(s)
-                  </Text>
-                  
-                  <Table
-                    columns={passengerColumns}
-                    dataSource={passengers}
-                    rowKey={(record, index) => `passenger-${index}`}
-                    pagination={false}
-                    className="passenger-table"
-                  />
-                  
-                  <div className="step-buttons" style={{ marginTop: 24 }}>
-                    <Space>
-                      <Button onClick={() => setCurrentStep(0)}>Back</Button>
-                      <Button type="primary" onClick={() => onFinishBooking({})}>
-                        Next: Contact Details
-                      </Button>
-                    </Space>
-                  </div>
-                </div>
-              )}
-
-              {currentStep === 2 && (
-                <div className="booking-step">
-                  <Title level={3}>Contact & Preferences</Title>
-                  <Alert
-                    message="Provide your contact details and any special requirements"
-                    type="info"
-                    showIcon
-                    style={{ marginBottom: 24 }}
-                  />
-                  
-                  <Form layout="vertical" size="large">
-                    <Row gutter={24}>
-                      <Col xs={24} md={12}>
-                        <Form.Item
-                          label="Contact Number"
-                          required
-                        >
-                          <Input
-                            placeholder="Enter your contact number"
-                            value={contactDetails.phone}
-                            onChange={(e) => setContactDetails({
-                              ...contactDetails,
-                              phone: e.target.value
-                            })}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item label="Emergency Contact">
-                          <Input
-                            placeholder="Emergency contact (optional)"
-                            value={contactDetails.emergency_contact}
-                            onChange={(e) => setContactDetails({
-                              ...contactDetails,
-                              emergency_contact: e.target.value
-                            })}
-                          />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    
-                    <Form.Item label="Special Requests">
-                      <TextArea
-                        rows={4}
-                        placeholder="Any special requirements, dietary restrictions, accessibility needs..."
-                        value={contactDetails.special_requests}
-                        onChange={(e) => setContactDetails({
-                          ...contactDetails,
-                          special_requests: e.target.value
-                        })}
-                      />
-                    </Form.Item>
-
-                    <div className="step-buttons">
-                      <Space>
-                        <Button onClick={() => setCurrentStep(1)}>Back</Button>
-                        <Button type="primary" onClick={() => onFinishBooking({})}>
-                          Review Booking
-                        </Button>
-                      </Space>
-                    </div>
-                  </Form>
-                </div>
-              )}
-
-              {currentStep === 3 && (
-                <div className="booking-step">
-                  <Title level={3}>Review & Confirm</Title>
-                  
-                  <Card style={{ marginBottom: 24 }}>
-                    <Title level={4}>Booking Summary</Title>
-                    <Row gutter={[16, 16]}>
-                      <Col xs={24} sm={12}>
-                        <Text strong>Tour:</Text> {tourData?.name}
-                        <br />
-                        <Text strong>Travel Date:</Text> {travelDate?.format('DD/MM/YYYY')}
-                        <br />
-                        <Text strong>Duration:</Text> {tourData?.duration}
-                      </Col>
-                      <Col xs={24} sm={12}>
-                        <Text strong>Travelers:</Text> {numberOfPassengers}
-                        <br />
-                        <Text strong>Contact:</Text> {contactDetails.phone}
-                        <br />
-                        <Text strong>Total Amount:</Text> <Text strong style={{ color: '#1890ff', fontSize: '16px' }}>₹{totalPrice.toLocaleString()}</Text>
-                      </Col>
-                    </Row>
-                  </Card>
-
-                  <Card title="Traveler Details" style={{ marginBottom: 24 }}>
-                    {passengers.map((p, idx) => (
-                      <div key={idx} style={{ marginBottom: 8 }}>
-                        <Text>
-                          <Text strong>Traveler {idx + 1}:</Text> {p.name || "N/A"} ({p.age || "N/A"} years)
-                        </Text>
-                      </div>
-                    ))}
-                  </Card>
-
-                  {contactDetails.special_requests && (
-                    <Card title="Special Requests" style={{ marginBottom: 24 }}>
-                      <Text>{contactDetails.special_requests}</Text>
-                    </Card>
+                        </Col>
+                      </Row>
+                    </motion.div>
                   )}
 
-                  <div className="step-buttons">
-                    <Space>
-                      <Button onClick={() => setCurrentStep(2)}>Back</Button>
-                      <Button
-                        type="primary"
-                        size="large"
-                        loading={loading}
-                        onClick={() => onFinishBooking({})}
-                      >
-                        Proceed to Payment
-                      </Button>
-                    </Space>
-                  </div>
+                  {currentStep === 1 && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                      <Title level={4}>Traveler Information</Title>
+                      <Divider />
+                      {Array.from({ length: numberOfPassengers }).map((_, index) => (
+                        <Card key={index} type="inner" title={`Traveler ${index + 1}`} style={{ marginBottom: '20px', background: 'var(--bg-secondary)' }}>
+                          <Row gutter={16}>
+                            <Col span={16}>
+                              <Input
+                                placeholder="Full Name"
+                                value={passengers[index]?.name}
+                                onChange={(e) => {
+                                  const newP = [...passengers];
+                                  newP[index] = { ...newP[index], name: e.target.value };
+                                  setPassengers(newP);
+                                }}
+                              />
+                            </Col>
+                            <Col span={8}>
+                              <InputNumber
+                                placeholder="Age"
+                                style={{ width: '100%' }}
+                                min={1}
+                                value={passengers[index]?.age}
+                                onChange={(val) => {
+                                  const newP = [...passengers];
+                                  newP[index] = { ...newP[index], age: val };
+                                  setPassengers(newP);
+                                }}
+                              />
+                            </Col>
+                          </Row>
+                        </Card>
+                      ))}
+                    </motion.div>
+                  )}
+
+                  {currentStep === 2 && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                      <Title level={4}>Contact Information</Title>
+                      <Divider />
+                      <Form layout="vertical">
+                        <Form.Item label="Phone Number" required>
+                          <Input
+                            value={contactDetails.phone}
+                            onChange={(e) => setContactDetails({ ...contactDetails, phone: e.target.value })}
+                            size="large"
+                          />
+                        </Form.Item>
+                        <Form.Item label="Emergency Contact (Optional)">
+                          <Input
+                            value={contactDetails.emergency_contact}
+                            onChange={(e) => setContactDetails({ ...contactDetails, emergency_contact: e.target.value })}
+                            size="large"
+                          />
+                        </Form.Item>
+                        <Form.Item label="Special Requests">
+                          <TextArea
+                            rows={4}
+                            value={contactDetails.special_requests}
+                            onChange={(e) => setContactDetails({ ...contactDetails, special_requests: e.target.value })}
+                          />
+                        </Form.Item>
+                      </Form>
+                    </motion.div>
+                  )}
+
+                  {currentStep === 3 && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                      <Title level={4}>Review Booking</Title>
+                      <Divider />
+                      <div style={{ background: 'var(--bg-secondary)', padding: '20px', borderRadius: 'var(--radius-md)' }}>
+                        <Row gutter={[16, 16]}>
+                          <Col span={12}><Text type="secondary">Tour:</Text> <Text strong>{tourData?.name}</Text></Col>
+                          <Col span={12}><Text type="secondary">Date:</Text> <Text strong>{travelDate?.format("DD MMM YYYY")}</Text></Col>
+                          <Col span={12}><Text type="secondary">Travelers:</Text> <Text strong>{numberOfPassengers}</Text></Col>
+                          <Col span={12}><Text type="secondary">Total:</Text> <Text strong style={{ color: 'var(--primary-color)', fontSize: '1.2rem' }}>₹{totalPrice.toLocaleString()}</Text></Col>
+                        </Row>
+                      </div>
+                      <div style={{ marginTop: '20px' }}>
+                        <Text strong>Travelers:</Text>
+                        <ul style={{ marginTop: '10px' }}>
+                          {passengers.slice(0, numberOfPassengers).map((p, i) => (
+                            <li key={i}>{p.name} ({p.age} yrs)</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </motion.div>
+                  )}
                 </div>
-              )}
-            </Card>
+
+                <Divider />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Button
+                    onClick={() => setCurrentStep(curr => curr - 1)}
+                    disabled={currentStep === 0}
+                    icon={<ArrowLeftOutlined />}
+                    size="large"
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="primary"
+                    onClick={onFinishBooking}
+                    size="large"
+                    className="btn-primary-gradient"
+                  >
+                    {currentStep === 3 ? "Proceed to Payment" : "Next Step"} <ArrowRightOutlined />
+                  </Button>
+                </div>
+
+              </Card>
+            </motion.div>
           </Col>
 
-          {/* Price Summary */}
+          {/* Summary Sidebar */}
           <Col xs={24} lg={8}>
-            <Card className="price-summary-card">
-              <h3>Price Summary</h3>
-              <div className="price-item">
-                <span>Base Price (1 person):</span>
-                <span className="price">
-                  ₹{tourData?.price?.toLocaleString() || "0"}
-                </span>
-              </div>
-              <div className="price-item">
-                <span>Number of Travelers:</span>
-                <span className="quantity">{numberOfPassengers}</span>
-              </div>
-              <Divider />
-              <div className="price-item total">
-                <span>Total Amount:</span>
-                <span className="total-price">
-                  ₹{totalPrice.toLocaleString()}
-                </span>
-              </div>
-              <div className="price-note">
-                📝 Cancellation allowed up to 14 days before the tour.
-                <br />
-                100% refund on cancellation.
-              </div>
-            </Card>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+            >
+              <Card className="card" style={{ position: 'sticky', top: '100px' }}>
+                <Title level={4}>Booking Summary</Title>
+                <Divider style={{ margin: '15px 0' }} />
+                <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                  <img src={tourData?.image} alt={tourData?.name} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                  <div>
+                    <div style={{ fontWeight: 'bold' }}>{tourData?.name}</div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{tourData?.duration}</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <span>Price per person</span>
+                  <span>₹{tourData?.price?.toLocaleString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <span>Travelers</span>
+                  <span>x {numberOfPassengers}</span>
+                </div>
+
+                <Divider style={{ margin: '15px 0' }} />
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontSize: '1.2rem', fontWeight: 'bold' }}>
+                  <span>Total Price</span>
+                  <span style={{ color: 'var(--primary-color)' }}>₹{totalPrice.toLocaleString()}</span>
+                </div>
+
+                <Alert message="Free Cancellation until 7 days before trip" type="success" showIcon style={{ marginTop: '20px', borderRadius: '8px' }} />
+              </Card>
+            </motion.div>
           </Col>
         </Row>
       </div>
 
       {/* Payment Modal */}
       <Modal
-        title="Complete Payment"
+        title={null}
         open={paymentModalVisible}
         onCancel={() => setPaymentModalVisible(false)}
         footer={null}
-        width={600}
+        width={500}
+        bodyStyle={{ padding: '30px' }}
       >
-        <div style={{ marginBottom: 20 }}>
-          <h3>Payment Summary</h3>
-          <div style={{ background: '#f5f5f5', padding: 16, borderRadius: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span>Tour: {tourData?.name}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span>Travelers: {numberOfPassengers}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: 16 }}>
-              <span>Total Amount:</span>
-              <span>₹{totalPrice.toLocaleString()}</span>
-            </div>
+        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+          <div style={{ width: '60px', height: '60px', background: 'var(--primary-light)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px', color: 'var(--primary-color)', fontSize: '1.5rem' }}>
+            <LockOutlined />
           </div>
+          <Title level={3} style={{ margin: 0 }}>Secure Payment</Title>
+          <Text type="secondary">Total Amount: ₹{totalPrice.toLocaleString()}</Text>
         </div>
 
-        <Form
-          form={paymentForm}
-          layout="vertical"
-          onFinish={handlePayment}
-          size="large"
-        >
-          <Form.Item
-            name="payment_method"
-            label="Payment Method"
-            rules={[{ required: true, message: 'Please select payment method' }]}
-            initialValue="credit_card"
-          >
-            <Input value="Credit/Debit Card" disabled />
+        <Form form={paymentForm} layout="vertical" onFinish={handlePayment}>
+          <Form.Item label="Card Number" required>
+            <Input prefix={<CreditCardOutlined />} placeholder="0000 0000 0000 0000" size="large" />
           </Form.Item>
-
-          <Form.Item
-            name="card_number"
-            label="Card Number"
-            rules={[
-              { required: true, message: 'Please enter card number' },
-              { len: 16, message: 'Card number must be 16 digits' }
-            ]}
-          >
-            <Input
-              placeholder="1234 5678 9012 3456"
-              maxLength={16}
-              onChange={(e) => {
-                // Format card number
-                const value = e.target.value.replace(/\D/g, '');
-                e.target.value = value;
-              }}
-            />
-          </Form.Item>
-
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item
-                name="expiry_date"
-                label="Expiry Date"
-                rules={[{ required: true, message: 'Please enter expiry date' }]}
-              >
-                <Input placeholder="MM/YY" maxLength={5} />
+              <Form.Item label="Expiry" required>
+                <Input placeholder="MM/YY" size="large" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item
-                name="cvv"
-                label="CVV"
-                rules={[
-                  { required: true, message: 'Please enter CVV' },
-                  { len: 3, message: 'CVV must be 3 digits' }
-                ]}
-              >
-                <Input placeholder="123" maxLength={3} />
+              <Form.Item label="CVV" required>
+                <Input placeholder="123" size="large" />
               </Form.Item>
             </Col>
           </Row>
-
-          <Form.Item
-            name="cardholder_name"
-            label="Cardholder Name"
-            rules={[{ required: true, message: 'Please enter cardholder name' }]}
-          >
-            <Input placeholder="John Doe" />
+          <Form.Item label="Card Holder Name" required>
+            <Input placeholder="Name on card" size="large" />
           </Form.Item>
 
-          <div style={{ marginTop: 24, textAlign: 'center' }}>
-            <Button onClick={() => setPaymentModalVisible(false)} style={{ marginRight: 8 }}>
-              Cancel
-            </Button>
-            <Button type="primary" htmlType="submit" loading={loading} size="large">
-              Pay ₹{totalPrice.toLocaleString()}
-            </Button>
-          </div>
+          <Button type="primary" htmlType="submit" block size="large" loading={loading} className="btn-primary-gradient" style={{ height: '45px', marginTop: '10px' }}>
+            Pay Securely
+          </Button>
         </Form>
-
-        <div style={{ marginTop: 16, padding: 12, background: '#e6f7ff', borderRadius: 6, fontSize: 12 }}>
-          🔒 This is a demo payment system. No real payment will be processed.
-          Your booking will be confirmed automatically.
-        </div>
       </Modal>
 
-      <InquiryButton />
-    
     </div>
   );
 };

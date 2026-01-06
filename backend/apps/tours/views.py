@@ -89,7 +89,7 @@ class DestinationViewSet(BaseViewSet):
 
 class TourViewSet(BaseViewSet):
     """ViewSet for managing tours"""
-    queryset = Tour.objects.select_related('destination').prefetch_related('packages')
+    queryset = Tour.objects.select_related('primary_destination').prefetch_related('destinations', 'packages', 'seasonal_pricings__season')
 
     def get_serializer_class(self):
         """Return appropriate serializer based on action"""
@@ -102,13 +102,13 @@ class TourViewSet(BaseViewSet):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
             permission_classes = [IsAdminUser]
         else:
-            permission_classes = []
+            permission_classes = []  # Allow anonymous access for list and retrieve
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
         """Filter active tours for non-admin users"""
         queryset = super().get_queryset()
-        if not (self.request.user.is_authenticated and self.request.user.is_admin):
+        if not (self.request.user.is_authenticated and getattr(self.request.user, 'is_admin', False)):
             queryset = queryset.filter(is_active=True)
         return queryset
 
@@ -133,13 +133,15 @@ class TourViewSet(BaseViewSet):
             queryset = queryset.filter(
                 Q(name__icontains=search_term) |
                 Q(description__icontains=search_term) |
-                Q(destination__name__icontains=search_term)
-            )
+                Q(primary_destination__name__icontains=search_term) |
+                Q(destinations__name__icontains=search_term)
+            ).distinct()
 
         if search_params.get('destination'):
             queryset = queryset.filter(
-                destination__name__icontains=search_params['destination']
-            )
+                Q(primary_destination__name__icontains=search_params['destination']) |
+                Q(destinations__name__icontains=search_params['destination'])
+            ).distinct()
 
         if search_params.get('category'):
             queryset = queryset.filter(category=search_params['category'])
@@ -203,6 +205,30 @@ class TourViewSet(BaseViewSet):
         return APIResponse.success(
             data=serializer.data,
             message="Tour packages retrieved successfully"
+        )
+
+    @action(detail=True, methods=['get'])
+    def pricing(self, request, pk=None):
+        """Get seasonal pricing for a specific tour"""
+        tour = self.get_object()
+        pricings = tour.seasonal_pricings.select_related('season').all()
+        serializer = TourPricingSerializer(pricings, many=True)
+        
+        return APIResponse.success(
+            data=serializer.data,
+            message="Tour pricing retrieved successfully"
+        )
+
+    @action(detail=True, methods=['get'])
+    def destinations(self, request, pk=None):
+        """Get all destinations for a specific tour"""
+        tour = self.get_object()
+        destinations = tour.destinations.filter(is_active=True)
+        serializer = DestinationSerializer(destinations, many=True)
+        
+        return APIResponse.success(
+            data=serializer.data,
+            message="Tour destinations retrieved successfully"
         )
 
     def create(self, request, *args, **kwargs):

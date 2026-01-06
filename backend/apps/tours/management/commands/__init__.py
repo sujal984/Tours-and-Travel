@@ -1,1 +1,1 @@
-# commands package
+# Management commands

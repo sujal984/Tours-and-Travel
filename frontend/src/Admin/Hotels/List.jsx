@@ -133,8 +133,16 @@ const HotelsList = () => {
     },
     {
       title: 'Destination',
-      key: 'destination',
-      render: (_, record) => record.destination?.name || 'N/A',
+      key: 'destination_display',
+      render: (_, record) => {
+        if (record.destination_display) {
+          return record.destination_display;
+        }
+        if (record.destination?.name) {
+          return record.destination.name;
+        }
+        return 'N/A';
+      },
     },
     {
       title: 'Address',

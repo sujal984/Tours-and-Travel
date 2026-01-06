@@ -30,6 +30,9 @@ urlpatterns = [
     # Tour-specific endpoints (at root level to maintain /api/v1/tours/ for tour list)
     path('', TourViewSet.as_view({'get': 'list', 'post': 'create'}), name='tour-list'),
     path('<uuid:pk>/', TourViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='tour-detail'),
+    path('<uuid:pk>/packages/', TourViewSet.as_view({'get': 'packages'}), name='tour-packages'),
+    path('<uuid:pk>/pricing/', TourViewSet.as_view({'get': 'pricing'}), name='tour-pricing'),
+    path('<uuid:pk>/destinations/', TourViewSet.as_view({'get': 'destinations'}), name='tour-destinations'),
     path('<uuid:tour_pk>/packages/', TourPackageViewSet.as_view({'get': 'list', 'post': 'create'}), name='tour-packages-list'),
     path('<uuid:tour_pk>/packages/<uuid:pk>/', TourPackageViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='tour-packages-detail'),
     path('search/', TourViewSet.as_view({'get': 'search'}), name='tour-search'),

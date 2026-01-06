@@ -14,11 +14,18 @@ class PaymentSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'created_at', 'updated_at']
 
     def get_booking_details(self, obj):
+        if obj.booking:
+            return {
+                'id': obj.booking.id,
+                'tour_name': obj.booking.tour.name if obj.booking.tour else 'No Tour',
+                'user_email': obj.booking.user.email if obj.booking.user else 'No User',
+                'travel_date': obj.booking.travel_date,
+            }
         return {
-            'id': obj.booking.id,
-            'tour_name': obj.booking.tour.name,
-            'user_email': obj.booking.user.email,
-            'travel_date': obj.booking.travel_date,
+            'id': None,
+            'tour_name': 'No Booking',
+            'user_email': 'No Booking',
+            'travel_date': None,
         }
 
 

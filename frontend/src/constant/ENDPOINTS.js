@@ -42,6 +42,14 @@ export const endpoints = {
   GET_CUSTOM_PACKAGES: "/tours/custom-packages/",
   GET_CUSTOM_PACKAGE_DETAIL: (id) => `/tours/custom-packages/${id}/`,
 
+  // Seasons
+  GET_SEASONS: "/tours/seasons/",
+  GET_SEASON_DETAIL: (id) => `/tours/seasons/${id}/`,
+
+  // Pricing
+  GET_PRICINGS: "/tours/pricings/",
+  GET_PRICING_DETAIL: (id) => `/tours/pricings/${id}/`,
+
   // Users (Admin or Profile)
   GET_ALL_USERS: "/users/",
   UPDATE_PROFILE: "/users/profile/",
@@ -54,7 +62,7 @@ export const endpoints = {
   CREATE_BOOKING: "/bookings/",
   GET_BOOKING_DETAIL: (id) => `/bookings/${id}/`,
   UPDATE_BOOKING: (id) => `/bookings/${id}/`,
-  CANCEL_BOOKING: (id) => `/bookings/${id}/`, // Updated to use detail for cancel (usually a PATCH)
+  CANCEL_BOOKING: (id) => `/bookings/${id}/cancel/`,
 
   // Payments
   CREATE_PAYMENT: "/payments/",

@@ -1,12 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { Row, Col, Card, Button, Spin, Empty, Space, Typography } from "antd";
-import { FilterOutlined, SearchOutlined, CalendarOutlined, UserOutlined, ArrowRightOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import { Row, Col, Card, Button, Spin, Empty, Space, Typography, Tag, Select, Input } from "antd";
+import {
+  FilterOutlined,
+  SearchOutlined,
+  CalendarOutlined,
+  UserOutlined,
+  ArrowRightOutlined,
+  ClockCircleOutlined,
+  EnvironmentOutlined,
+} from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-
+import { motion, AnimatePresence } from "framer-motion";
 import { apiClient } from "../../services/api";
-import "./Tours.css";
 import { endpoints } from "../../constant/ENDPOINTS";
+
+const { Title, Text } = Typography;
+const { Option } = Select;
 
 const Tours = () => {
   const navigate = useNavigate();
@@ -16,70 +25,45 @@ const Tours = () => {
     type: "all",
     priceRange: "all",
     duration: "all",
+    search: "",
   });
-  const [selectedDuration, setSelectedDuration] = useState('All');
+  const [selectedDuration, setSelectedDuration] = useState("All");
 
   useEffect(() => {
     (async () => {
       try {
         const res = await apiClient.get(endpoints.GET_ALL_TOURS);
         const data = res.data?.data || res.data?.results || res.data || [];
-        console.log('API Response:', data); // Debug log
-        
+
+        console.log('Tours API Response:', data); // Debug log
+
         // Map backend fields to frontend fields
         const mapped = data.map((t) => ({
           id: t.id,
-          title: t.name, // Backend uses 'name' not 'title'
-          type: t.destination_name || t.destination?.name || t.category || "General",
-          price: t.base_price || 0, // Backend uses 'base_price'
-          duration: t.duration_days || 1, // Backend uses 'duration_days'
-          image: t.featured_image ? 
-            (t.featured_image.startsWith('http') ? t.featured_image : `http://127.0.0.1:8000${t.featured_image}`) :
-            `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&h=300&fit=crop&q=80`,
+          title: t.name,
+          type: t.category || "General",
+          price: t.current_price || t.base_price || 0,
+          seasonal_pricings: t.seasonal_pricings || [],
+          duration: t.duration_days || 1,
+          image: t.featured_image
+            ? t.featured_image.startsWith("http")
+              ? t.featured_image
+              : `http://127.0.0.1:8000${t.featured_image}`
+            : `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&h=300&fit=crop&q=80`,
           description: t.description || "Explore amazing destinations with us",
           rating: t.average_rating || 4.5,
-          reviews: t.review_count || 0,
           availability: t.is_active ? "Available" : "Not Available",
           groupSize: `${t.max_capacity || 10} People`,
-          category: t.category,
-          difficulty_level: t.difficulty_level,
+          location: t.destination_names || t.primary_destination_name || "India",
+          destinations: t.destination_names || t.primary_destination_name || "Multiple Destinations"
         }));
+        
+        console.log('Mapped Tours:', mapped); // Debug log
         setTours(mapped);
       } catch (err) {
         console.error("Failed to fetch tours", err);
-        // Set dummy data for development
-        setTours([
-          {
-            id: 1,
-            title: "Sikkim Adventure",
-            type: "Adventure",
-            price: 25000,
-            duration: 7,
-            image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&h=300&fit=crop&q=80",
-            description: "Explore the beautiful mountains and culture of Sikkim",
-            rating: 4.8,
-            reviews: 24,
-            availability: "Available",
-            groupSize: "15 People",
-            category: "ADVENTURE",
-            difficulty_level: "MODERATE",
-          },
-          {
-            id: 2,
-            title: "Vietnam Discovery",
-            type: "International",
-            price: 45000,
-            duration: 9,
-            image: "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=400&h=300&fit=crop&q=80",
-            description: "Discover the beauty and culture of Vietnam",
-            rating: 4.6,
-            reviews: 18,
-            availability: "Available",
-            groupSize: "20 People",
-            category: "CULTURAL",
-            difficulty_level: "EASY",
-          }
-        ]);
+        // Fallback for dev
+        setTours([]);
       } finally {
         setLoading(false);
       }
@@ -92,105 +76,132 @@ const Tours = () => {
 
   const filteredTours = tours.filter((tour) => {
     // Basic type filter
-    if (filters.type !== "all" && tour.type.toLowerCase() !== filters.type) return false;
+    if (filters.type !== "all" && tour.type?.toLowerCase() !== filters.type)
+      return false;
+
+    // Search filter
+    if (filters.search && !tour.title.toLowerCase().includes(filters.search.toLowerCase()))
+      return false;
 
     // Duration filter
-    if (selectedDuration !== 'All') {
-      if (selectedDuration === 'Under 5 Days' && tour.duration >= 5) return false;
-      if (selectedDuration === '5-10 Days' && (tour.duration < 5 || tour.duration > 10)) return false;
-      if (selectedDuration === '10+ Days' && tour.duration <= 10) return false;
+    if (selectedDuration !== "All") {
+      if (selectedDuration === "Under 5 Days" && tour.duration >= 5)
+        return false;
+      if (
+        selectedDuration === "5-10 Days" &&
+        (tour.duration < 5 || tour.duration > 10)
+      )
+        return false;
+      if (selectedDuration === "10+ Days" && tour.duration <= 10) return false;
     }
 
     return true;
   });
 
-  // Framer Motion variants
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
   };
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.4,
-      },
-    },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } },
   };
 
   if (loading) {
     return (
-      <div className="tours-page">
-        <div className="loading-container"><Spin size="large" tip="Loading tours..." /></div>
+      <div style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
+        <Spin size="large" />
       </div>
     );
   }
 
   return (
-    <div className="tours-page">
-      <div className="tours-container">
+    <div style={{ background: 'var(--bg-secondary)', minHeight: '100vh', paddingBottom: 'var(--spacing-4xl)' }}>
+      {/* Header */}
+      <div style={{
+        background: 'linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1920&q=80")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        padding: '120px 0 60px',
+        textAlign: 'center',
+        color: 'white',
+        marginBottom: '2rem'
+      }}>
         <motion.div
-          className="tours-header"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1>Explore Our Tour Packages</h1>
-          <p>Choose from our wide range of amazing tour destinations</p>
+          <h1 style={{ fontSize: '3.5rem', marginBottom: '1rem', color: 'white' }}>Find Your Next Adventure</h1>
+          <p style={{ fontSize: '1.25rem', opacity: 0.9 }}>Browse through our wide range of curated tour packages</p>
         </motion.div>
+      </div>
 
-        <Row gutter={[32, 32]}>
+      <div className="container-xl" style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 var(--spacing-xl)' }}>
+        <Row gutter={[48, 48]}>
           {/* Filters Sidebar */}
           <Col xs={24} lg={6}>
             <motion.div
-              className="filters-section"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
+              style={{ position: 'sticky', top: '100px' }}
             >
-              <h3>
-                <FilterOutlined /> Filters
-              </h3>
+              <Card className="card" bordered={false} style={{ borderRadius: 'var(--radius-lg)' }}>
+                <Title level={4} style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FilterOutlined style={{ color: 'var(--primary-color)' }} /> Filters
+                </Title>
 
-              <div className="filter-group">
-                <label>Duration</label>
-                <div className="filter-options">
-                  {['All', 'Under 5 Days', '5-10 Days', '10+ Days'].map(opt => (
-                    <button
-                      key={opt}
-                      className={`filter-btn ${selectedDuration === opt ? "active" : ""}`}
-                      onClick={() => setSelectedDuration(opt)}
-                    >
-                      {opt}
-                    </button>
-                  ))}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <Text strong style={{ display: 'block', marginBottom: '0.5rem' }}>Search</Text>
+                  <Input
+                    placeholder="Search destinations..."
+                    prefix={<SearchOutlined style={{ color: 'var(--text-tertiary)' }} />}
+                    onChange={(e) => handleFilter('search', e.target.value)}
+                    style={{ borderRadius: 'var(--radius-md)' }}
+                  />
                 </div>
-              </div>
 
-              <div className="filter-group">
-                <label>Tour Type</label>
-                <div className="filter-options">
-                  {["all", "domestic", "international", "couple", "family"].map(
-                    (type) => (
-                      <button
-                        key={type}
-                        className={`filter-btn ${filters.type === type ? "active" : ""}`}
-                        onClick={() => handleFilter("type", type)}
-                      >
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </button>
-                    )
-                  )}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <Text strong style={{ display: 'block', marginBottom: '0.5rem' }}>Duration</Text>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    {["All", "Under 5 Days", "5-10 Days", "10+ Days"].map(
+                      (opt) => (
+                        <Button
+                          key={opt}
+                          block
+                          type={selectedDuration === opt ? "primary" : "default"}
+                          onClick={() => setSelectedDuration(opt)}
+                          className={selectedDuration === opt ? "btn-primary-gradient" : ""}
+                          style={{ textAlign: 'left', borderRadius: 'var(--radius-md)' }}
+                        >
+                          {opt}
+                        </Button>
+                      )
+                    )}
+                  </Space>
                 </div>
-              </div>
+
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <Text strong style={{ display: 'block', marginBottom: '0.5rem' }}>Tour Type</Text>
+                  <Space direction="vertical" style={{ width: '100%' }}>
+                    {["all", "domestic", "international", "couple", "family"].map(
+                      (type) => (
+                        <Button
+                          key={type}
+                          block
+                          type={filters.type === type ? "primary" : "text"}
+                          onClick={() => handleFilter("type", type)}
+                          style={{ textAlign: 'left', borderRadius: 'var(--radius-md)', textTransform: 'capitalize' }}
+                        >
+                          {type}
+                        </Button>
+                      )
+                    )}
+                  </Space>
+                </div>
+              </Card>
             </motion.div>
           </Col>
 
@@ -205,51 +216,71 @@ const Tours = () => {
                 <Row gutter={[24, 24]}>
                   {filteredTours.map((tour) => (
                     <Col key={tour.id} xs={24} sm={12} lg={8}>
-                      <motion.div
-                        variants={cardVariants}
-                        whileHover={{ y: -8, transition: { duration: 0.3 } }}
-                      >
+                      <motion.div variants={cardVariants} style={{ height: '100%' }}>
                         <Card
-                          className="tour-card"
+                          className="custom-card"
+                          hoverable
                           cover={
-                            <div className="tour-image-container">
-                              <img src={tour.image} alt={tour.title} />
-                              <span className="tour-badge">
-                                <ClockCircleOutlined /> {tour.duration}d
-                              </span>
-                              <div className="tour-overlay">
-                                <Button
-                                  type="primary"
-                                  size="large"
-                                  onClick={() => navigate(`/tours/${tour.id}`)}
-                                >
-                                  View Details
-                                </Button>
+                            <div style={{ position: 'relative', overflow: 'hidden', height: '220px' }}>
+                              <img
+                                alt={tour.title}
+                                src={tour.image}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                              <div style={{
+                                position: 'absolute',
+                                top: '15px',
+                                right: '15px',
+                                background: 'rgba(255,255,255,0.95)',
+                                padding: '4px 12px',
+                                borderRadius: '20px',
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold',
+                                color: 'var(--primary-color)',
+                                boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+                              }}>
+                                {tour.type?.toUpperCase()}
                               </div>
                             </div>
                           }
-                          hoverable
-                          bodyStyle={{ padding: '1.2rem' }}
+                          bodyStyle={{ padding: "0", display: 'flex', flexDirection: 'column', height: 'calc(100% - 220px)' }}
+                          onClick={() => navigate(`/tours/${tour.id}`)}
                         >
-                          <h3>{tour.title}</h3>
-                          <p className="tour-description">{tour.description?.substring(0, 100) || "Explore amazing destinations"}...</p>
+                          <div className="tour-card-content">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <ClockCircleOutlined /> {tour.duration} Days
+                              </span>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <UserOutlined /> {tour.groupSize}
+                              </span>
+                            </div>
 
-                          <div className="tour-meta">
-                            <span><CalendarOutlined /> {tour.availability}</span>
-                            <span><UserOutlined /> {tour.groupSize}</span>
-                          </div>
+                            <h3 className="tour-title" style={{ minHeight: '3rem', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                              {tour.title}
+                            </h3>
 
-                          <div className="tour-footer">
-                            <span className="tour-price">
-                              ₹{tour.price.toLocaleString()}
-                            </span>
-                            <Button
-                              type="link"
-                              onClick={() => navigate(`/tours/${tour.id}`)}
-                              icon={<ArrowRightOutlined />}
-                            >
-                              Details
-                            </Button>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem', flexGrow: 1 }}>
+                              <EnvironmentOutlined style={{ color: 'var(--primary-color)', marginRight: '5px' }} />
+                              {tour.location}
+                            </p>
+
+                            <div className="tour-price-section">
+                              <div>
+                                <Text type="secondary" style={{ fontSize: '0.8rem' }}>Starts from</Text>
+                                <div className="tour-price">₹{tour.price.toLocaleString()}</div>
+                              </div>
+                              <Button
+                                type="primary"
+                                shape="circle"
+                                icon={<ArrowRightOutlined />}
+                                className="btn-primary-gradient"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/tours/${tour.id}`);
+                                }}
+                              />
+                            </div>
                           </div>
                         </Card>
                       </motion.div>
@@ -258,7 +289,16 @@ const Tours = () => {
                 </Row>
               </motion.div>
             ) : (
-              <Empty description="No tours found" />
+              <div style={{ textAlign: 'center', padding: '100px 0' }}>
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description={<span style={{ color: 'var(--text-secondary)' }}>No tours match your filters</span>}
+                />
+                <Button type="primary" onClick={() => {
+                  setFilters({ type: "all", priceRange: "all", duration: "all", search: "" });
+                  setSelectedDuration("All");
+                }}>Clear Filters</Button>
+              </div>
             )}
           </Col>
         </Row>

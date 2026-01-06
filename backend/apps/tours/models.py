@@ -12,7 +12,7 @@ from apps.core.models import BaseModel
 
 class Season(BaseModel):
     """
-    Season model for seasonal pricing
+    Season model for seasonal pricing with date ranges
     """
     MONTH_CHOICES = [
         (1, 'January'), (2, 'February'), (3, 'March'), (4, 'April'),
@@ -23,6 +23,16 @@ class Season(BaseModel):
     name = models.CharField(max_length=100, unique=True)
     start_month = models.PositiveSmallIntegerField(choices=MONTH_CHOICES)
     end_month = models.PositiveSmallIntegerField(choices=MONTH_CHOICES)
+    start_date = models.DateField(
+        help_text="Season start date (e.g., July 1, 2025)",
+        null=True,
+        blank=True
+    )
+    end_date = models.DateField(
+        help_text="Season end date (e.g., September 30, 2025)",
+        null=True,
+        blank=True
+    )
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
 
@@ -33,12 +43,21 @@ class Season(BaseModel):
         verbose_name_plural = 'Seasons'
 
     def __str__(self):
+        if self.start_date and self.end_date:
+            return f"{self.name} ({self.start_date.strftime('%b %d')} - {self.end_date.strftime('%b %d')})"
         return self.name
+
+    @property
+    def date_range_display(self):
+        """Display date range in readable format"""
+        if self.start_date and self.end_date:
+            return f"{self.start_date.strftime('%d %B, %Y')} to {self.end_date.strftime('%d %B, %Y')}"
+        return "Date range not set"
 
 
 class TourPricing(BaseModel):
     """
-    Seasonal pricing for tours
+    Seasonal pricing for tours with detailed breakdown
     """
     tour = models.ForeignKey(
         'Tour',
@@ -50,12 +69,53 @@ class TourPricing(BaseModel):
         related_name='tour_pricings',
         on_delete=models.CASCADE
     )
+    
+    # Detailed pricing breakdown
+    two_sharing_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text="Price per person for 2-sharing accommodation",
+        null=True,
+        blank=True
+    )
+    three_sharing_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text="Price per person for 3-sharing accommodation",
+        null=True,
+        blank=True
+    )
+    child_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text="Price for child (4-11 years) without bed",
+        null=True,
+        blank=True
+    )
+    
+    # Specific dates
+    available_dates = models.JSONField(
+        default=list,
+        help_text="List of specific available dates: ['10', '17', '24']"
+    )
+    
+    # Additional details
+    includes_return_air = models.BooleanField(
+        default=True,
+        help_text="Whether price includes return air travel"
+    )
+    description = models.TextField(blank=True)
+    
+    # Legacy field for backward compatibility
     price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        validators=[MinValueValidator(0)]
+        validators=[MinValueValidator(0)],
+        help_text="Base price (usually same as two_sharing_price)"
     )
-    description = models.TextField(blank=True)
 
     class Meta:
         db_table = 'tours_tourpricing'
@@ -63,8 +123,15 @@ class TourPricing(BaseModel):
         verbose_name = 'Tour Pricing'
         verbose_name_plural = 'Tour Pricings'
 
+    def save(self, *args, **kwargs):
+        # Set base price to two_sharing_price if not set
+        if not self.price and self.two_sharing_price:
+            self.price = self.two_sharing_price
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.tour.name} - {self.season.name}: {self.price}"
+        price_display = self.two_sharing_price or self.price
+        return f"{self.tour.name} - {self.season.name}: ₹{price_display}"
 
 
 class TourItinerary(BaseModel):
@@ -150,10 +217,16 @@ class Tour(BaseModel):
     name = models.CharField(max_length=200, unique=True)
     slug = models.SlugField(max_length=220, unique=True, blank=True)
     description = models.TextField()
-    destination = models.ForeignKey(
+    destinations = models.ManyToManyField(
         Destination, 
-        related_name='tours', 
-        on_delete=models.CASCADE
+        related_name='tours',
+        help_text="Multiple destinations covered in this tour"
+    )
+    primary_destination = models.ForeignKey(
+        Destination,
+        related_name='primary_tours',
+        on_delete=models.CASCADE,
+        help_text="Main destination for this tour"
     )
     duration_days = models.PositiveIntegerField(
         validators=[MinValueValidator(1)]
@@ -204,13 +277,34 @@ class Tour(BaseModel):
         default='CULTURAL'
     )
     
+    # Enhanced brochure fields
+    hotel_details = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Hotel details by destination: {destination_id: {hotel_name: 'Hotel Name', hotel_type: 'Type'}}"
+    )
+    vehicle_details = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Vehicle information: {type: 'AC INNOVA/XYLO', note: 'AC will not work in hill area'}"
+    )
+    pricing_details = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Detailed pricing: {season: {dates: [], two_sharing: 0, three_sharing: 0, child_price: 0}}"
+    )
+    special_notes = models.TextField(
+        blank=True,
+        help_text="Special notes and conditions"
+    )
+    
     class Meta:
         db_table = 'tours_tour'
         ordering = ['-created_at']
         verbose_name = 'Tour'
         verbose_name_plural = 'Tours'
         indexes = [
-            models.Index(fields=['destination']),
+            models.Index(fields=['primary_destination']),
             models.Index(fields=['category']),
             models.Index(fields=['base_price']),
             models.Index(fields=['is_active']),
@@ -252,6 +346,38 @@ class Tour(BaseModel):
         )['total_participants'] or 0
         
         return max(0, self.max_capacity - confirmed_bookings)
+
+    def get_current_price(self, season=None):
+        """Get current price based on season or return base price"""
+        if season:
+            try:
+                pricing = self.seasonal_pricings.get(season=season)
+                return pricing.price
+            except TourPricing.DoesNotExist:
+                pass
+        return self.base_price
+
+    def get_seasonal_prices(self):
+        """Get all seasonal prices for this tour"""
+        return self.seasonal_pricings.select_related('season').all()
+
+    @property
+    def destination_names(self):
+        """Get comma-separated list of destination names"""
+        return ", ".join([dest.name for dest in self.destinations.all()])
+
+    @property
+    def all_destinations(self):
+        """Get all destinations for this tour"""
+        return self.destinations.all()
+
+    def get_hotel_by_destination(self, destination_id):
+        """Get hotel details for a specific destination"""
+        return self.hotel_details.get(str(destination_id), {})
+
+    def get_pricing_for_season(self, season_name):
+        """Get detailed pricing for a specific season"""
+        return self.pricing_details.get(season_name, {})
 
 
 class TourPackage(BaseModel):
@@ -384,7 +510,8 @@ class Offer(BaseModel):
     discount_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        validators=[MinValueValidator(0), MaxValueValidator(100)]
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Enter percentage value (e.g., 10 for 10%)"
     )
     start_date = models.DateField()
     end_date = models.DateField()
@@ -410,6 +537,13 @@ class Offer(BaseModel):
         from django.utils import timezone
         today = timezone.now().date()
         return self.is_active and self.start_date <= today <= self.end_date
+
+    def calculate_discounted_price(self, original_price):
+        """Calculate discounted price"""
+        if self.is_valid:
+            discount_amount = (original_price * self.discount_percentage) / 100
+            return original_price - discount_amount
+        return original_price
 
 
 class CustomPackage(BaseModel):
