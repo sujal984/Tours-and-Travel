@@ -38,26 +38,43 @@ const Tours = () => {
         console.log('Tours API Response:', data); // Debug log
 
         // Map backend fields to frontend fields
-        const mapped = data.map((t) => ({
-          id: t.id,
-          title: t.name,
-          type: t.category || "General",
-          price: t.current_price || t.base_price || 0,
-          seasonal_pricings: t.seasonal_pricings || [],
-          duration: t.duration_days || 1,
-          image: t.featured_image
-            ? t.featured_image.startsWith("http")
-              ? t.featured_image
-              : `http://127.0.0.1:8000${t.featured_image}`
-            : `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&h=300&fit=crop&q=80`,
-          description: t.description || "Explore amazing destinations with us",
-          rating: t.average_rating || 4.5,
-          availability: t.is_active ? "Available" : "Not Available",
-          groupSize: `${t.max_capacity || 10} People`,
-          location: t.destination_names || t.primary_destination_name || "India",
-          destinations: t.destination_names || t.primary_destination_name || "Multiple Destinations"
-        }));
-        
+        const mapped = data.map((t) => {
+          // Calculate the actual starting price from base_price and all seasonal pricings
+          const basePrice = Number(t.base_price) || 0;
+          const currentPrice = Number(t.current_price) || 0;
+          const seasonalPrices = (t.seasonal_pricings || []).map(p => Number(p.two_sharing_price)).filter(p => !isNaN(p) && p > 0);
+          
+          // Use the minimum of all available prices, with base_price as fallback
+          const allPrices = [currentPrice, basePrice, ...seasonalPrices].filter(p => !isNaN(p) && p > 0);
+          const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : basePrice;
+
+          return {
+            id: t.id,
+            title: t.name,
+            type: t.category || "General",
+            category: t.category?.toLowerCase(),
+            tourType: t.tour_type?.toLowerCase(),
+            price: minPrice,
+            seasonal_pricings: t.seasonal_pricings || [],
+            duration: Number(t.duration_days) || 1,
+            image: t.featured_image
+              ? t.featured_image.startsWith("http")
+                ? t.featured_image
+                : `http://127.0.0.1:8000${t.featured_image}`
+              : (t.destinations && t.destinations.length > 0 && t.destinations[0].images && t.destinations[0].images.length > 0 
+                  ? (t.destinations[0].images[0].image.startsWith('http') 
+                      ? t.destinations[0].images[0].image 
+                      : `http://127.0.0.1:8000${t.destinations[0].images[0].image}`)
+                  : `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&h=300&fit=crop&q=80`),
+            description: t.description || "Explore amazing destinations with us",
+            rating: t.average_rating || 4.5,
+            availability: t.is_active ? "Available" : "Not Available",
+            groupSize: `${t.max_capacity || 10} People`,
+            location: t.destination_names || t.primary_destination_name || "India",
+            destinations: t.destination_names || t.primary_destination_name || "Multiple Destinations"
+          };
+        });
+
         console.log('Mapped Tours:', mapped); // Debug log
         setTours(mapped);
       } catch (err) {
@@ -75,9 +92,26 @@ const Tours = () => {
   };
 
   const filteredTours = tours.filter((tour) => {
-    // Basic type filter
-    if (filters.type !== "all" && tour.type?.toLowerCase() !== filters.type)
-      return false;
+    // Type/Category/TourType filter
+    if (filters.type !== "all") {
+      const type = filters.type.toLowerCase();
+
+      // Handle domestic/international specifically (these are tour_type in backend)
+      if (type === 'domestic' || type === 'international') {
+        if (tour.tourType !== type) return false;
+      }
+      // Handle couple/family specifically (these are categories in backend)
+      else if (type === 'couple') {
+        if (tour.category !== 'honeymoon') return false;
+      }
+      else if (type === 'family') {
+        if (tour.category !== 'family') return false;
+      }
+      // Default fallback for other categories
+      else {
+        if (tour.category !== type) return false;
+      }
+    }
 
     // Search filter
     if (filters.search && !tour.title.toLowerCase().includes(filters.search.toLowerCase()))
@@ -85,14 +119,15 @@ const Tours = () => {
 
     // Duration filter
     if (selectedDuration !== "All") {
-      if (selectedDuration === "Under 5 Days" && tour.duration >= 5)
+      const duration = Number(tour.duration);
+      if (selectedDuration === "Under 5 Days" && duration >= 5)
         return false;
       if (
         selectedDuration === "5-10 Days" &&
-        (tour.duration < 5 || tour.duration > 10)
+        (duration < 5 || duration > 10)
       )
         return false;
-      if (selectedDuration === "10+ Days" && tour.duration <= 10) return false;
+      if (selectedDuration === "10+ Days" && duration <= 10) return false;
     }
 
     return true;
@@ -290,14 +325,36 @@ const Tours = () => {
               </motion.div>
             ) : (
               <div style={{ textAlign: 'center', padding: '100px 0' }}>
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description={<span style={{ color: 'var(--text-secondary)' }}>No tours match your filters</span>}
-                />
-                <Button type="primary" onClick={() => {
-                  setFilters({ type: "all", priceRange: "all", duration: "all", search: "" });
-                  setSelectedDuration("All");
-                }}>Clear Filters</Button>
+                {tours.length === 0 ? (
+                  // No tours at all
+                  <>
+                    <div style={{ 
+                      fontSize: '3rem', 
+                      color: 'var(--text-tertiary)', 
+                      marginBottom: '16px' 
+                    }}>
+                      🏖️
+                    </div>
+                    <h3 style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                      No Tours Available Yet
+                    </h3>
+                    <p style={{ color: 'var(--text-tertiary)' }}>
+                      We're working on adding amazing tour packages. Check back soon!
+                    </p>
+                  </>
+                ) : (
+                  // Tours exist but none match filters
+                  <>
+                    <Empty
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      description={<span style={{ color: 'var(--text-secondary)' }}>No tours match your filters</span>}
+                    />
+                    <Button type="primary" onClick={() => {
+                      setFilters({ type: "all", priceRange: "all", duration: "all", search: "" });
+                      setSelectedDuration("All");
+                    }}>Clear Filters</Button>
+                  </>
+                )}
               </div>
             )}
           </Col>

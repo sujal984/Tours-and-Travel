@@ -72,15 +72,10 @@ export const adminMenuItems = [
         path: '/admin/bookings',
     },
     {
-        key: 'pricing-offers',
-        icon: DollarOutlined,
-        label: 'Pricing & Offers',
+        key: 'offers-seasons',
+        icon: TagsOutlined,
+        label: 'Offers & Seasons',
         children: [
-            {
-                key: '/admin/pricings',
-                label: 'Pricing',
-                path: '/admin/pricings',
-            },
             {
                 key: '/admin/offers',
                 label: 'Offers & Discounts',

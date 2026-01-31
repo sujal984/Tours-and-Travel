@@ -75,6 +75,12 @@ class RefundViewSet(BaseViewSet):
         refund.admin_notes = request.data.get('admin_notes', '')
         refund.save()
         
+        # Sync with booking status
+        if refund.booking:
+            refund.booking.status = 'CANCELLED_REFUNDED'
+            refund.booking.save()
+            logger.info(f"Booking {refund.booking.id} status updated to CANCELLED_REFUNDED")
+        
         logger.info(f"Refund {refund.id} approved by {request.user.email}")
         
         return APIResponse.success(
@@ -98,6 +104,12 @@ class RefundViewSet(BaseViewSet):
         refund.processed_at = timezone.now()
         refund.admin_notes = request.data.get('admin_notes', 'Refund rejected by admin')
         refund.save()
+        
+        # Sync with booking status
+        if refund.booking:
+            refund.booking.status = 'CANCELLED_NOT_REFUNDED'
+            refund.booking.save()
+            logger.info(f"Booking {refund.booking.id} status updated to CANCELLED_NOT_REFUNDED")
         
         logger.info(f"Refund {refund.id} rejected by {request.user.email}")
         
@@ -138,7 +150,26 @@ class InvoiceViewSet(BaseViewSet):
     """ViewSet for managing invoices"""
     queryset = Invoice.objects.select_related('booking', 'booking__tour', 'booking__user').all()
     serializer_class = InvoiceSerializer
-    permission_classes = [IsAdminUser]
+
+    def get_permissions(self):
+        """Set permissions based on action"""
+        if self.action in ['list', 'retrieve']:
+            # Allow authenticated users to view their own invoices
+            from rest_framework.permissions import IsAuthenticated
+            permission_classes = [IsAuthenticated]
+        else:
+            # Only admin can create, update, delete invoices
+            permission_classes = [IsAdminUser]
+        return [permission() for permission in permission_classes]
+
+    def get_queryset(self):
+        """Filter invoices based on user role"""
+        if hasattr(self.request.user, 'role') and self.request.user.role == 'ADMIN':
+            # Admin can see all invoices
+            return self.queryset
+        else:
+            # Regular users can only see their own invoices
+            return self.queryset.filter(booking__user=self.request.user)
 
     def create(self, request, *args, **kwargs):
         """Create a new invoice"""

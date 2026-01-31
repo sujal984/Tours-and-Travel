@@ -129,7 +129,18 @@ class Invoice(BaseModel):
             import datetime
             today = datetime.date.today()
             count = Invoice.objects.filter(created_at__date=today).count() + 1
-            self.invoice_number = f"INV-{today.strftime('%Y%m%d')}-{count:04d}"
+            self.invoice_number = f"INV-{today.strftime('%Y-%m%d')}-{count:04d}"
+        
+        # Calculate total_amount properly
+        from decimal import Decimal, ROUND_HALF_UP
+        
+        # Ensure amounts are Decimal for precise calculation
+        amount = Decimal(str(self.amount)) if self.amount else Decimal('0')
+        tax_amount = Decimal(str(self.tax_amount)) if self.tax_amount else Decimal('0')
+        
+        # Calculate total with proper rounding
+        self.total_amount = (amount + tax_amount).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        
         super().save(*args, **kwargs)
 
     def __str__(self):

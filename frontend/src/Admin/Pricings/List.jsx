@@ -110,6 +110,9 @@ const PricingsList = () => {
       tour: pricing.tour,
       season: pricing.season,
       price: pricing.price,
+      two_sharing_price: pricing.two_sharing_price,
+      three_sharing_price: pricing.three_sharing_price,
+      child_price: pricing.child_price,
       description: pricing.description,
     });
     setModalVisible(true);
@@ -155,11 +158,29 @@ const PricingsList = () => {
       render: (_, record) => record.season_name || 'N/A',
     },
     {
-      title: 'Price',
+      title: 'Base Price',
       dataIndex: 'price',
       key: 'price',
       render: (price) => `₹${price?.toLocaleString()}`,
       sorter: (a, b) => a.price - b.price,
+    },
+    {
+      title: '2-Share',
+      dataIndex: 'two_sharing_price',
+      key: 'two_sharing_price',
+      render: (price) => `₹${price?.toLocaleString()}`,
+    },
+    {
+      title: '3-Share',
+      dataIndex: 'three_sharing_price',
+      key: 'three_sharing_price',
+      render: (price) => `₹${price?.toLocaleString()}`,
+    },
+    {
+      title: 'Child Price',
+      dataIndex: 'child_price',
+      key: 'child_price',
+      render: (price) => `₹${price?.toLocaleString()}`,
     },
     {
       title: 'Description',
@@ -271,17 +292,58 @@ const PricingsList = () => {
 
           <Form.Item
             name="price"
-            label="Price (₹)"
-            rules={[{ required: true, message: 'Please enter price' }]}
+            label="Base Price (₹)"
+            rules={[{ required: true, message: 'Please enter base price' }]}
           >
             <InputNumber
               min={0}
               style={{ width: '100%' }}
-              placeholder="Enter price"
+              placeholder="Enter base price"
               formatter={value => `₹ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
               parser={value => value.replace(/₹\s?|(,*)/g, '')}
             />
           </Form.Item>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+            <Form.Item
+              name="two_sharing_price"
+              label="2-Share Price (₹)"
+              rules={[{ required: true, message: 'Required' }]}
+            >
+              <InputNumber
+                min={0}
+                style={{ width: '100%' }}
+                formatter={value => `₹ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={value => value.replace(/₹\s?|(,*)/g, '')}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="three_sharing_price"
+              label="3-Share Price (₹)"
+              rules={[{ required: true, message: 'Required' }]}
+            >
+              <InputNumber
+                min={0}
+                style={{ width: '100%' }}
+                formatter={value => `₹ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={value => value.replace(/₹\s?|(,*)/g, '')}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="child_price"
+              label="Child Price (₹)"
+              rules={[{ required: true, message: 'Required' }]}
+            >
+              <InputNumber
+                min={0}
+                style={{ width: '100%' }}
+                formatter={value => `₹ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={value => value.replace(/₹\s?|(,*)/g, '')}
+              />
+            </Form.Item>
+          </div>
 
           <Form.Item
             name="description"

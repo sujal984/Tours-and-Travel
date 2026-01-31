@@ -23,7 +23,7 @@ import { endpoints } from "../../constant/ENDPOINTS";
 const { Title, Text } = Typography;
 
 const Profile = () => {
-  const { user, updateUser } = useUser();
+  const { user, setUser, updateProfile } = useUser();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -43,17 +43,13 @@ const Profile = () => {
   }, [user, form]);
 
   const handleUpdateProfile = async (values) => {
-    setLoading(true);
     try {
-      const response = await apiClient.put(endpoints.UPDATE_PROFILE, values);
-      updateUser(response.data.data || response.data);
-      message.success("Profile updated successfully!");
-      setEditing(false);
+      const result = await updateProfile(values);
+      if (result.success) {
+        setEditing(false);
+      }
     } catch (error) {
-      console.error("Failed to update profile:", error);
-      message.error("Failed to update profile");
-    } finally {
-      setLoading(false);
+      console.error("Profile update error:", error);
     }
   };
 

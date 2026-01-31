@@ -74,6 +74,16 @@ const Navbar = () => {
       label: "My Bookings",
       icon: <UserOutlined />,
     },
+    {
+      key: "my-custom-requests",
+      label: "Custom Requests",
+      icon: <CompassOutlined />,
+    },
+    {
+      key: "my-inquiries",
+      label: "My Inquiries",
+      icon: <UserOutlined />,
+    },
     ...(user?.role === "ADMIN"
       ? [
         {
@@ -101,6 +111,12 @@ const Navbar = () => {
         break;
       case "my-bookings":
         navigate("/my-bookings");
+        break;
+      case "my-custom-requests":
+        navigate("/my-custom-requests");
+        break;
+      case "my-inquiries":
+        navigate("/my-inquiries");
         break;
       case "admin-dashboard":
         navigate("/admin/dashboard");
@@ -224,6 +240,32 @@ const Navbar = () => {
                   }}
                 >
                   My Bookings
+                </Button>
+              </div>
+              <div className="mb-2" style={{ marginBottom: '10px' }}>
+                <Button
+                  block
+                  type="default"
+                  icon={<CompassOutlined />}
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate("/my-custom-requests");
+                  }}
+                >
+                  Custom Requests
+                </Button>
+              </div>
+              <div className="mb-2" style={{ marginBottom: '10px' }}>
+                <Button
+                  block
+                  type="default"
+                  icon={<UserOutlined />}
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    navigate("/my-inquiries");
+                  }}
+                >
+                  My Inquiries
                 </Button>
               </div>
               <div>

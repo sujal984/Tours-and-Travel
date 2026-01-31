@@ -102,7 +102,8 @@ const ReviewsList = () => {
 
   const filteredReviews = Array.isArray(reviews) ? reviews.filter((review) => {
     const matchesSearch =
-      review.user?.username?.toLowerCase().includes(searchText.toLowerCase()) ||
+      review.user_details?.username?.toLowerCase().includes(searchText.toLowerCase()) ||
+      review.tour_details?.name?.toLowerCase().includes(searchText.toLowerCase()) ||
       review.tour?.name?.toLowerCase().includes(searchText.toLowerCase()) ||
       review.comment?.toLowerCase().includes(searchText.toLowerCase());
     const matchesRating = filterRating === 'all' || review.rating?.toString() === filterRating;
@@ -127,10 +128,10 @@ const ReviewsList = () => {
           <Avatar icon={<UserOutlined />} size="small" />
           <div>
             <div style={{ fontWeight: 'bold', fontSize: '14px' }}>
-              {record.user?.username}
+              {record.user_details?.username || record.user?.username || 'N/A'}
             </div>
             <div style={{ fontSize: '12px', color: '#666' }}>
-              {record.user?.email}
+              {record.user_details?.email || record.user?.email || 'N/A'}
             </div>
           </div>
         </div>
@@ -141,7 +142,7 @@ const ReviewsList = () => {
       key: 'tour',
       width: 120,
       render: (_, record) => (
-        <Tag color="blue">{record.tour?.name}</Tag>
+        <Tag color="blue">{record.tour_details?.name || record.tour?.name || 'N/A'}</Tag>
       ),
     },
     {

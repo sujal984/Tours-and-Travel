@@ -62,14 +62,14 @@ function AdminLogin() {
   const handleLogin = async (values) => {
     setLoading(true);
     const { email, password } = values;
-    console.log("Admin login called with:", email, password);
+   
 
     try {
       const result = await adminLogin(email, password);
 
       if (result.success) {
         message.success("Admin login successful!");
-        // Use replace to prevent back button issues
+        
         navigate('/admin', { replace: true });
         form.resetFields();
       } else {
@@ -93,9 +93,7 @@ function AdminLogin() {
       <Card className="w-full max-w-md shadow-xl p-6 rounded-lg">
         <div className="text-center mb-6">
           <Title level={2}>Admin Login</Title>
-          <Text type="secondary">
-            Use username: <strong>admin</strong> and password: <strong>admin123</strong>
-          </Text>
+         
         </div>
 
         <Form

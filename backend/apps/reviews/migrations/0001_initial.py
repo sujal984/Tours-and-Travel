@@ -12,7 +12,6 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('tours', '0005_remove_booking_tour_remove_booking_user_and_more'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

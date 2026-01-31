@@ -1,34 +1,47 @@
-import React, { useEffect, useState } from 'react';
-import {
-  Table,
-  Button,
+import React, { useState, useEffect } from "react";
+import { 
+  Card, 
+  Table, 
+  Tag, 
+  Button, 
+  Modal, 
+  Typography, 
+  Row, 
+  Col, 
+  Divider, 
   Space,
-  Card,
+  Empty,
+  Spin,
   message,
-  Tag,
-  Modal,
-  Descriptions,
+  Form,
   Input,
-  Select,
-} from 'antd';
+  Descriptions
+} from "antd";
 import {
   EyeOutlined,
+  CalendarOutlined,
+  UserOutlined,
+  MessageOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined,
-} from '@ant-design/icons';
-import { apiClient } from '../../services/api';
-import { endpoints } from '../../constant/ENDPOINTS';
+  ClockCircleOutlined,
+  ExclamationCircleOutlined,
+  SendOutlined
+} from "@ant-design/icons";
+import { motion } from "framer-motion";
+import dayjs from "dayjs";
+import { apiClient } from "../../services/api";
+import { endpoints } from "../../constant/ENDPOINTS";
 
-const { Search } = Input;
-const { Option } = Select;
+const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
 
 const InquiriesList = () => {
   const [inquiries, setInquiries] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searchText, setSearchText] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [responseLoading, setResponseLoading] = useState(false);
+  const [form] = Form.useForm();
 
   useEffect(() => {
     fetchInquiries();
@@ -38,255 +51,255 @@ const InquiriesList = () => {
     try {
       setLoading(true);
       const response = await apiClient.get(endpoints.GET_INQUIRIES);
-      const inquiriesData = response.data?.data || response.data?.results || [];
-      setInquiries(Array.isArray(inquiriesData) ? inquiriesData : []);
+      setInquiries(response.data?.data || response.data?.results || response.data || []);
     } catch (error) {
-      console.error('Error fetching inquiries:', error);
-      message.error('Failed to load inquiries');
-      setInquiries([]);
+      console.error("Error fetching inquiries:", error);
+      message.error("Failed to load inquiries");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusUpdate = async (inquiryId, newStatus) => {
+  const handleAdminResponse = async (values) => {
     try {
-      await apiClient.patch(endpoints.GET_INQUIRY_DETAIL(inquiryId), {
-        status: newStatus,
+      setResponseLoading(true);
+      await apiClient.post(endpoints.ADMIN_RESPOND_INQUIRY(selectedInquiry.id), {
+        admin_response: values.admin_response
       });
-      message.success(`Inquiry ${newStatus} successfully`);
-      fetchInquiries();
+      
+      message.success("Response sent successfully!");
+      form.resetFields();
+      setModalVisible(false);
+      fetchInquiries(); // Refresh the list
     } catch (error) {
-      console.error('Error updating inquiry status:', error);
-      message.error('Failed to update inquiry status');
+      console.error("Error sending response:", error);
+      message.error("Failed to send response. Please try again.");
+    } finally {
+      setResponseLoading(false);
     }
   };
 
-  const showInquiryDetails = (inquiry) => {
-    setSelectedInquiry(inquiry);
-    setDetailModalVisible(true);
-  };
-
-  const filteredInquiries = Array.isArray(inquiries) ? inquiries.filter((inquiry) => {
-    const matchesSearch =
-      inquiry.name?.toLowerCase().includes(searchText.toLowerCase()) ||
-      inquiry.email?.toLowerCase().includes(searchText.toLowerCase()) ||
-      inquiry.message?.toLowerCase().includes(searchText.toLowerCase()) ||
-      inquiry.tour?.title?.toLowerCase().includes(searchText.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || inquiry.status?.toLowerCase() === filterStatus.toLowerCase();
-    return matchesSearch && matchesStatus;
-  }) : [];
-
   const getStatusColor = (status) => {
     const colors = {
-      'NEW': 'orange',
-      'new': 'orange',
+      'NEW': 'blue',
       'RESPONDED': 'green',
-      'responded': 'green',
-      'CLOSED': 'gray',
-      'closed': 'gray',
+      'CLOSED': 'gray'
     };
     return colors[status] || 'default';
   };
 
+  const getStatusIcon = (status) => {
+    const icons = {
+      'NEW': <ClockCircleOutlined />,
+      'RESPONDED': <CheckCircleOutlined />,
+      'CLOSED': <ExclamationCircleOutlined />
+    };
+    return icons[status] || <ClockCircleOutlined />;
+  };
+
   const columns = [
     {
-      title: 'Inquiry ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 100,
-      render: (id) => `#${id}`,
+      title: "ID",
+      dataIndex: "id",
+      key: "id",
+      render: (text) => <Text copyable={{ text: text }} style={{ color: 'var(--primary-color)' }}>#{text}</Text>,
     },
     {
-      title: 'Customer',
-      key: 'customer',
-      render: (_, record) => (
+      title: "Customer",
+      dataIndex: "name",
+      key: "name",
+      render: (name, record) => (
         <div>
-          <div style={{ fontWeight: 'bold' }}>{record.name}</div>
-          <div style={{ fontSize: '12px', color: '#666' }}>{record.email}</div>
-          <div style={{ fontSize: '12px', color: '#666' }}>{record.contact_number}</div>
+          <Text strong>{name}</Text>
+          <br />
+          <Text type="secondary" style={{ fontSize: '0.85rem' }}>{record.email}</Text>
         </div>
+      )
+    },
+    {
+      title: "Date",
+      dataIndex: "inquiry_date",
+      key: "inquiry_date",
+      render: (date) => (
+        <Space>
+          <CalendarOutlined style={{ color: 'var(--text-tertiary)' }} />
+          {dayjs(date).format('DD MMM YYYY')}
+        </Space>
       ),
     },
     {
-      title: 'Tour',
-      key: 'tour',
-      render: (_, record) => (
-        record.tour ? (
-          <Tag color="blue">{record.tour.title}</Tag>
-        ) : (
-          <Tag color="gray">General Inquiry</Tag>
-        )
-      ),
+      title: "Subject",
+      dataIndex: "message",
+      key: "message",
+      render: (message) => {
+        const lines = message.split('\n');
+        const subject = lines[0];
+        return <Text>{subject.length > 40 ? subject.substring(0, 40) + '...' : subject}</Text>;
+      }
     },
     {
-      title: 'Message',
-      dataIndex: 'message',
-      key: 'message',
-      ellipsis: true,
-      width: 300,
-      render: (message) => (
-        <div style={{ maxWidth: 280 }}>
-          {message && message.length > 100 ? `${message.substring(0, 100)}...` : message || 'N/A'}
-        </div>
-      ),
-    },
-    {
-      title: 'Date',
-      dataIndex: 'inquiry_date',
-      key: 'inquiry_date',
-      render: (date) => new Date(date).toLocaleDateString(),
-      sorter: (a, b) => new Date(a.inquiry_date) - new Date(b.inquiry_date),
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
       render: (status) => (
-        <Tag color={getStatusColor(status)}>
-          {status?.toUpperCase()}
+        <Tag color={getStatusColor(status)} icon={getStatusIcon(status)}>
+          {status.replace('_', ' ')}
         </Tag>
       ),
-      filters: [
-        { text: 'New', value: 'NEW' },
-        { text: 'Responded', value: 'RESPONDED' },
-        { text: 'Closed', value: 'CLOSED' },
-      ],
-      onFilter: (value, record) => record.status === value,
     },
     {
-      title: 'Actions',
-      key: 'actions',
-      width: 200,
+      title: "Response",
+      dataIndex: "admin_response",
+      key: "admin_response",
+      render: (response) => response ? 
+        <Tag color="green" icon={<CheckCircleOutlined />}>Responded</Tag> : 
+        <Tag color="orange" icon={<ClockCircleOutlined />}>Pending</Tag>,
+    },
+    {
+      title: "Actions",
+      key: "actions",
       render: (_, record) => (
-        <Space>
-          <Button
-            type="primary"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => showInquiryDetails(record)}
-          >
-            View
-          </Button>
-          {record.status?.toLowerCase() === 'new' && (
-            <>
-              <Button
-                type="primary"
-                size="small"
-                icon={<CheckCircleOutlined />}
-                onClick={() => handleStatusUpdate(record.id, 'RESPONDED')}
-              >
-                Mark Responded
-              </Button>
-              <Button
-                size="small"
-                icon={<CloseCircleOutlined />}
-                onClick={() => handleStatusUpdate(record.id, 'CLOSED')}
-              >
-                Close
-              </Button>
-            </>
-          )}
-        </Space>
+        <Button
+          type="primary"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => {
+            setSelectedInquiry(record);
+            setModalVisible(true);
+            form.setFieldsValue({ admin_response: record.admin_response || '' });
+          }}
+        >
+          {record.admin_response ? 'View/Edit' : 'Respond'}
+        </Button>
       ),
     },
   ];
 
-  return (
-    <div>
-      <Card>
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-          <h2 style={{ margin: 0 }}>Inquiries Management</h2>
-        </div>
+  const renderDetailModal = () => {
+    if (!selectedInquiry) return null;
 
-        <div style={{ marginBottom: 16, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-          <Search
-            placeholder="Search inquiries..."
-            allowClear
-            style={{ width: 300 }}
-            onSearch={setSearchText}
-            onChange={(e) => setSearchText(e.target.value)}
-          />
-          <Select
-            placeholder="Filter by status"
-            style={{ width: 150 }}
-            value={filterStatus}
-            onChange={setFilterStatus}
-          >
-            <Option value="all">All Status</Option>
-            <Option value="NEW">New</Option>
-            <Option value="RESPONDED">Responded</Option>
-            <Option value="CLOSED">Closed</Option>
-          </Select>
-        </div>
-
-        <Table
-          columns={columns}
-          dataSource={filteredInquiries}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) =>
-              `${range[0]}-${range[1]} of ${total} inquiries`,
-          }}
-          scroll={{ x: 1200 }}
-        />
-      </Card>
-
-      {/* Inquiry Details Modal */}
+    return (
       <Modal
-        title={`Inquiry Details - #${selectedInquiry?.id}`}
-        open={detailModalVisible}
-        onCancel={() => setDetailModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setDetailModalVisible(false)}>
-            Close
-          </Button>,
-        ]}
-        width={700}
+        title={`Inquiry #${selectedInquiry.id} - ${selectedInquiry.name}`}
+        open={modalVisible}
+        onCancel={() => setModalVisible(false)}
+        footer={null}
+        width={800}
       >
-        {selectedInquiry && (
-          <Descriptions bordered column={2}>
-            <Descriptions.Item label="Customer Name" span={2}>
-              {selectedInquiry.name}
-            </Descriptions.Item>
-            <Descriptions.Item label="Email">
-              {selectedInquiry.email}
-            </Descriptions.Item>
-            <Descriptions.Item label="Contact">
-              {selectedInquiry.contact_number}
-            </Descriptions.Item>
-            <Descriptions.Item label="Tour" span={2}>
-              {selectedInquiry.tour ? (
-                <Tag color="blue">{selectedInquiry.tour.title}</Tag>
-              ) : (
-                <Tag color="gray">General Inquiry</Tag>
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="Inquiry Date">
-              {new Date(selectedInquiry.inquiry_date).toLocaleDateString()}
-            </Descriptions.Item>
-            <Descriptions.Item label="Status">
-              <Tag color={getStatusColor(selectedInquiry.status)}>
-                {selectedInquiry.status?.toUpperCase()}
+        <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          {/* Customer Details */}
+          <Descriptions title="Customer Information" bordered size="small" column={2}>
+            <Descriptions.Item label="Name">{selectedInquiry.name}</Descriptions.Item>
+            <Descriptions.Item label="Email">{selectedInquiry.email}</Descriptions.Item>
+            <Descriptions.Item label="Phone">{selectedInquiry.contact_number}</Descriptions.Item>
+            <Descriptions.Item label="Date">{dayjs(selectedInquiry.inquiry_date).format('DD MMM YYYY')}</Descriptions.Item>
+            <Descriptions.Item label="Status" span={2}>
+              <Tag color={getStatusColor(selectedInquiry.status)} icon={getStatusIcon(selectedInquiry.status)}>
+                {selectedInquiry.status.replace('_', ' ')}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="Message" span={2}>
-              <div style={{
-                padding: '12px',
-                background: '#f5f5f5',
-                borderRadius: '6px',
-                whiteSpace: 'pre-wrap'
-              }}>
-                {selectedInquiry.message}
-              </div>
-            </Descriptions.Item>
           </Descriptions>
-        )}
+
+          <Divider />
+
+          {/* Customer Message */}
+          <Card size="small" title="Customer Message" style={{ marginBottom: '20px' }}>
+            <Paragraph style={{ whiteSpace: 'pre-wrap' }}>{selectedInquiry.message}</Paragraph>
+          </Card>
+
+          {/* Admin Response Form */}
+          <Card size="small" title="Admin Response">
+            <Form
+              form={form}
+              onFinish={handleAdminResponse}
+              layout="vertical"
+            >
+              <Form.Item
+                name="admin_response"
+                label="Your Response"
+                rules={[{ required: true, message: 'Please enter your response' }]}
+              >
+                <TextArea
+                  rows={6}
+                  placeholder="Enter your response to the customer..."
+                />
+              </Form.Item>
+
+              <Form.Item>
+                <Space>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={responseLoading}
+                    icon={<SendOutlined />}
+                  >
+                    {selectedInquiry.admin_response ? 'Update Response' : 'Send Response'}
+                  </Button>
+                  <Button onClick={() => setModalVisible(false)}>
+                    Cancel
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
+          </Card>
+
+          {/* Previous Response (if exists) */}
+          {selectedInquiry.admin_response && (
+            <>
+              <Divider />
+              <Card 
+                size="small" 
+                title="Current Response"
+                style={{ background: 'var(--success-light)' }}
+              >
+                <Paragraph style={{ whiteSpace: 'pre-wrap' }}>{selectedInquiry.admin_response}</Paragraph>
+                <Text type="secondary">
+                  Last updated: {dayjs(selectedInquiry.updated_at).format('DD MMM YYYY, HH:mm')}
+                </Text>
+              </Card>
+            </>
+          )}
+        </div>
       </Modal>
+    );
+  };
+
+  if (loading) {
+    return (
+      <div style={{ height: '80vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '24px' }}>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{ marginBottom: '24px' }}
+      >
+        <Title level={2}>Customer Inquiries</Title>
+        <Text type="secondary">Manage and respond to customer inquiries</Text>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <Card>
+          <Table
+            columns={columns}
+            dataSource={inquiries}
+            rowKey="id"
+            pagination={{ pageSize: 10 }}
+            locale={{ emptyText: <Empty description="No inquiries found" /> }}
+          />
+        </Card>
+      </motion.div>
+
+      {renderDetailModal()}
     </div>
   );
 };

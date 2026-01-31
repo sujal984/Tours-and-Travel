@@ -5,7 +5,7 @@ from django.utils.safestring import mark_safe
 from .models import (
     Destination, Tour, TourPackage, Hotel, Vehicle, 
     Offer, CustomPackage, Inquiry, Season, TourPricing,
-    TourItinerary
+    TourItinerary, DestinationImage
 )
 
 
@@ -28,17 +28,55 @@ class SeasonAdmin(admin.ModelAdmin):
     )
 
 
+class DestinationImageInline(admin.TabularInline):
+    model = DestinationImage
+    extra = 1
+    fields = ['image', 'caption', 'is_featured', 'image_preview']
+    readonly_fields = ['image_preview']
+    
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-height: 50px; max-width: 100px;" />',
+                obj.image.url
+            )
+        return "No image"
+    image_preview.short_description = 'Preview'
+
+
 @admin.register(Destination)
 class DestinationAdmin(admin.ModelAdmin):
-    list_display = ['name', 'country', 'is_active', 'tours_count', 'created_at']
+    list_display = ['name', 'country', 'is_active', 'tours_count', 'images_count', 'created_at']
     list_filter = ['is_active', 'country']
     search_fields = ['name', 'description', 'places', 'country']
     prepopulated_fields = {'slug': ('name',)}
     readonly_fields = ['slug', 'created_at', 'updated_at']
+    inlines = [DestinationImageInline]
     
     def tours_count(self, obj):
         return obj.tours.count()
     tours_count.short_description = 'Tours Count'
+    
+    def images_count(self, obj):
+        return obj.images.count()
+    images_count.short_description = 'Images'
+
+
+@admin.register(DestinationImage)
+class DestinationImageAdmin(admin.ModelAdmin):
+    list_display = ['destination', 'caption', 'is_featured', 'image_preview', 'created_at']
+    list_filter = ['is_featured', 'destination', 'created_at']
+    search_fields = ['destination__name', 'caption']
+    autocomplete_fields = ['destination']
+    
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-height: 100px; max-width: 150px;" />',
+                obj.image.url
+            )
+        return "No image"
+    image_preview.short_description = 'Preview'
 
 
 class TourPricingInline(admin.TabularInline):
@@ -66,7 +104,7 @@ class TourAdmin(admin.ModelAdmin):
     list_display = [
         'name', 'primary_destination', 'destination_list', 'duration_days', 
         'base_price', 'max_capacity', 'category', 'difficulty_level', 
-        'is_active', 'created_at'
+        'featured_image_preview', 'is_active', 'created_at'
     ]
     list_filter = [
         'is_active', 'category', 'difficulty_level', 'primary_destination', 
@@ -74,7 +112,7 @@ class TourAdmin(admin.ModelAdmin):
     ]
     search_fields = ['name', 'description', 'primary_destination__name']
     prepopulated_fields = {'slug': ('name',)}
-    readonly_fields = ['slug', 'created_at', 'updated_at', 'average_rating', 'review_count']
+    readonly_fields = ['slug', 'created_at', 'updated_at', 'average_rating', 'review_count', 'featured_image_preview']
     filter_horizontal = ['destinations']
     inlines = [TourPricingInline, TourPackageInline]
     
@@ -90,7 +128,7 @@ class TourAdmin(admin.ModelAdmin):
             'fields': ('duration_days', 'max_capacity', 'base_price', 'is_active')
         }),
         ('Media', {
-            'fields': ('featured_image', 'gallery_images'),
+            'fields': ('featured_image', 'featured_image_preview', 'gallery_images'),
             'classes': ('collapse',)
         }),
         ('Tour Content', {
@@ -115,6 +153,15 @@ class TourAdmin(admin.ModelAdmin):
             names.append(f"... +{obj.destinations.count() - 3} more")
         return ", ".join(names)
     destination_list.short_description = 'All Destinations'
+    
+    def featured_image_preview(self, obj):
+        if obj.featured_image:
+            return format_html(
+                '<img src="{}" style="max-height: 50px; max-width: 80px;" />',
+                obj.featured_image.url
+            )
+        return "No image"
+    featured_image_preview.short_description = 'Image'
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('primary_destination').prefetch_related('destinations')
@@ -162,10 +209,32 @@ class TourPackageAdmin(admin.ModelAdmin):
 
 @admin.register(Hotel)
 class HotelAdmin(admin.ModelAdmin):
-    list_display = ['name', 'destination', 'hotel_type', 'star_rating', 'is_active', 'created_at']
+    list_display = ['name', 'destination', 'hotel_type', 'star_rating', 'image_preview', 'is_active', 'created_at']
     list_filter = ['is_active', 'hotel_type', 'star_rating', 'destination']
     search_fields = ['name', 'address', 'destination__name']
     autocomplete_fields = ['destination']
+    readonly_fields = ['image_preview']
+    
+    fieldsets = (
+        ('Hotel Information', {
+            'fields': ('name', 'destination', 'address', 'hotel_type', 'star_rating')
+        }),
+        ('Media', {
+            'fields': ('image', 'image_preview')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+    )
+    
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="max-height: 100px; max-width: 150px;" />',
+                obj.image.url
+            )
+        return "No image"
+    image_preview.short_description = 'Image Preview'
     
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('destination')

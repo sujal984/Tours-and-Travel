@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 
 const { Title, Text } = Typography;
 
-const LoginModal = ({ open, onClose }) => {
+const LoginModal = ({ open, onClose, onRegisterClick }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const { login } = useUser();
@@ -110,17 +110,6 @@ const LoginModal = ({ open, onClose }) => {
             </Button>
           </Form.Item>
 
-          <Divider style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem' }}>Or continue with</Divider>
-
-          <div style={{ textAlign: "center", marginBottom: '20px' }}>
-            <Button
-              icon={<GoogleOutlined />}
-              size="large"
-              style={{ width: '100%', borderRadius: 'var(--radius-md)' }}
-            >
-              Google
-            </Button>
-          </div>
 
           <div style={{ textAlign: "center" }}>
             <Text type="secondary">Don't have an account? </Text>
@@ -129,13 +118,8 @@ const LoginModal = ({ open, onClose }) => {
               style={{ color: "var(--primary-color)", fontWeight: "bold" }}
               onClick={(e) => {
                 e.preventDefault();
-                // Assuming parent handles this trigger via prop or context if complex switching needed
-                // But typically modals link via their props. 
-                // Since this is a modal, we might need a way to switch. 
-                // The current implementation onClose doesn't switch.
-                // Ideally passed a onSwitchToRegister prop.
-                // For now, I'll keep the link standard but styling is updated.
-                message.info("Please close this and open Register.");
+                onClose();
+                if (onRegisterClick) onRegisterClick();
               }}
             >
               Sign up

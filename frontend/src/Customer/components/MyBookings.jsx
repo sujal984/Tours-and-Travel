@@ -1,116 +1,301 @@
-import React, { useState, useEffect } from "react";
+import jsPDF from "jspdf";
+// Import autoTable plugin
+import autoTable from "jspdf-autotable";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import {
-  Row,
-  Col,
   Card,
-  Tabs,
-  Button,
-  Tag,
   Table,
+  Button,
+  Space,
+  Tag,
   Modal,
-  message,
+  Form,
+  Rate,
+  Alert,
+  Typography,
+  Tabs,
   Empty,
   Spin,
-  Space,
-  Rate,
-  Form,
   Input,
-  Typography,
-  Alert,
+  message
 } from "antd";
 import {
+  CalendarOutlined,
   DeleteOutlined,
-  FilePdfFilled,
   StarOutlined,
   EyeOutlined,
-  CalendarOutlined
+  FilePdfFilled
 } from "@ant-design/icons";
-import { motion } from "framer-motion";
-import { useUser } from "../../context/userContext";
 import { apiClient } from "../../services/api";
 import { endpoints } from "../../constant/ENDPOINTS";
-import { useNavigate } from "react-router-dom";
+import { useUser } from "../../context/userContext";
 
-const { TextArea } = Input;
 const { Title, Text } = Typography;
+const { TextArea } = Input;
 
 const MyBookings = () => {
-  const { user } = useUser();
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState(null);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const { user } = useUser();
+  const [cancelForm] = Form.useForm();
   const [reviewForm] = Form.useForm();
 
+  // State
+  const [bookings, setBookings] = useState([]);
+  const [inquiries, setInquiries] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [refundInfo, setRefundInfo] = useState(null);
+  const [refundLoading, setRefundLoading] = useState(false);
+
+  const statusColors = {
+    CONFIRMED: 'green',
+    PENDING: 'orange',
+    CANCELLED: 'red',
+    COMPLETED: 'blue',
+    REFUND_PENDING: 'purple',
+    CANCELLED_REFUNDED: 'cyan',
+    CANCELLED_NOT_REFUNDED: 'red'
+  };
   useEffect(() => {
-    fetchBookings();
-  }, []);
+    if (user) {
+      fetchBookings();
+      fetchInquiries();
+    } else {
+      // If user is not authenticated, set empty arrays
+      setBookings([]);
+      setInquiries([]);
+    }
+  }, [user]);
 
   const fetchBookings = async () => {
     try {
+      setLoading(true);
       const res = await apiClient.get(endpoints.GET_BOOKINGS);
-      const data = res.data?.data || res.data?.results || res.data || [];
-
-      const mapped = data.map((b) => ({
-        id: b.id,
-        tourName: b.tour?.name || b.tour_name || "Tour Package",
-        startDate: b.travel_date || b.booking_date || b.created_at,
-        totalAmount: b.total_price || 0,
-        status: b.status?.toUpperCase() || "PENDING",
-        passengers: b.travelers_count || 1,
-        can_review: b.can_review ?? (b.status?.toUpperCase() === "COMPLETED"),
-        can_cancel: b.can_cancel ?? ["PENDING", "CONFIRMED"].includes(b.status?.toUpperCase()),
-        tour: b.tour?.id || b.tour,
+      const bookingsData = res.data?.data || res.data?.results || res.data || [];
+      
+      // Ensure each booking has required fields with defaults
+      const processedBookings = bookingsData.map(booking => ({
+        ...booking,
+        totalAmount: booking.totalAmount || booking.total_price || 0,
+        tourName: booking.tourName || booking.tour_name || booking.tour?.name || 'Unknown Tour',
+        startDate: booking.startDate || booking.travel_date || booking.created_at,
+        status: booking.status || 'PENDING'
       }));
-
-      setBookings(mapped);
+      
+      setBookings(processedBookings);
     } catch (error) {
-      console.error("Failed to fetch bookings:", error);
-      message.error("Failed to fetch bookings");
-      // Keep empty if failed
-      setBookings([]);
+      console.error("Failed to fetch bookings", error);
+      message.error("Failed to load bookings");
+      setBookings([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCancelBooking = async (bookingId) => {
-    setCancelLoading(true);
+  const fetchInquiries = async () => {
     try {
-      await apiClient.post(endpoints.CANCEL_BOOKING(bookingId));
-      message.success("Booking cancelled successfully!");
+      const res = await apiClient.get(endpoints.GET_INQUIRIES);
+      setInquiries(res.data?.data || res.data?.results || res.data || []);
+    } catch (error) {
+      console.error("Failed to fetch inquiries", error);
+      if (error.response?.status === 403) {
+        console.log("User doesn't have permission to view inquiries");
+        setInquiries([]); // Set empty array for 403 errors
+      }
+    }
+  };
+
+  const handleCancelBooking = async (values) => {
+    try {
+      setCancelLoading(true);
+      const response = await apiClient.post(endpoints.CANCEL_BOOKING(selectedBooking.id), values);
+      
+      // Show detailed refund information
+      const refundData = response.data?.data?.refund_info;
+      if (refundData) {
+        if (refundData.refund_amount > 0) {
+          message.success(`Booking cancelled successfully. Refund of ₹${refundData.refund_amount.toFixed(2)} (${refundData.refund_percentage.toFixed(0)}%) will be processed.`);
+        } else {
+          message.info(`Booking cancelled. ${refundData.reason}`);
+        }
+      } else {
+        message.success("Booking cancelled successfully");
+      }
+      
       setModalVisible(false);
+      setRefundInfo(null);
       fetchBookings();
     } catch (error) {
-      message.error("Failed to cancel booking. Please try again.");
+      console.error("Failed to cancel booking", error);
+      message.error("Failed to cancel booking");
     } finally {
       setCancelLoading(false);
     }
   };
 
-  const handleAddReview = async (values) => {
+  const fetchRefundPolicy = async (bookingId) => {
     try {
-      await apiClient.post(`${endpoints.GET_BOOKING_DETAIL(selectedBooking.id)}/add_review/`, values);
-      message.success("Review submitted successfully!");
-      setReviewModalVisible(false);
-      reviewForm.resetFields();
-      fetchBookings();
+      setRefundLoading(true);
+      const response = await apiClient.get(`${endpoints.GET_BOOKINGS}${bookingId}/refund_policy/`);
+      setRefundInfo(response.data?.data);
     } catch (error) {
-      message.error("Failed to submit review.");
+      console.error("Failed to fetch refund policy", error);
+      setRefundInfo(null);
+    } finally {
+      setRefundLoading(false);
     }
   };
 
-  const statusColors = {
-    CONFIRMED: "success",
-    PENDING: "warning",
-    COMPLETED: "processing",
-    CANCELLED: "error",
+  const handleCancelClick = (booking) => {
+    setSelectedBooking(booking);
+    setModalVisible(true);
+    fetchRefundPolicy(booking.id);
   };
 
+  const handleAddReview = async (values) => {
+    try {
+      await apiClient.post(endpoints.ADD_REVIEW, {
+        ...values,
+        tour: selectedBooking.tour,
+        booking: selectedBooking.id
+      });
+      message.success("Review added successfully");
+      setReviewModalVisible(false);
+      fetchBookings();
+    } catch (error) {
+      console.error("Failed to add review", error);
+      message.error("Failed to add review");
+    }
+  };
+
+
+const handleDownloadInvoice = async (booking) => {
+  try {
+    // First, try to fetch the actual invoice from backend
+    let invoiceData = null;
+    try {
+      const invoiceResponse = await apiClient.get(`${endpoints.GET_INVOICES}?booking=${booking.id}`);
+      const invoices = invoiceResponse.data?.data || invoiceResponse.data?.results || [];
+      invoiceData = invoices.find(inv => inv.booking === booking.id) || invoices[0];
+    } catch (error) {
+      console.warn("Could not fetch invoice from backend, generating client-side:", error);
+    }
+
+    const doc = new jsPDF();
+
+    /* ------------------ CONFIG ------------------ */
+    const primaryColor = [220, 20, 60]; // Brand color
+    const companyName = "Rima Tours & Travels";
+    const companyAddress = "MG Road, Kochi, Kerala, India";
+    const companyPhone = "+91 98765 43210";
+    const companyEmail = "support@rimatours.com";
+
+    // Use backend invoice data if available, otherwise generate
+    const invoiceNumber = invoiceData?.invoice_number || `INV-${new Date().getFullYear()}-${String(booking.id).padStart(4, "0")}`;
+    const invoiceDate = invoiceData?.issued_date ? new Date(invoiceData.issued_date).toLocaleDateString() : new Date().toLocaleDateString();
+
+    // Use backend amounts if available, otherwise calculate
+    let totalAmount, taxAmount, finalAmount;
+    
+    if (invoiceData) {
+      // Use backend invoice data (already properly calculated)
+      totalAmount = parseFloat(invoiceData.amount || 0);
+      taxAmount = parseFloat(invoiceData.tax_amount || 0);
+      finalAmount = parseFloat(invoiceData.total_amount || 0);
+    } else {
+      // Fallback to client-side calculation with proper rounding
+      totalAmount = parseFloat(booking.totalAmount || booking.total_price || 0);
+      taxAmount = Math.round(totalAmount * 0.05 * 100) / 100;
+      finalAmount = Math.round((totalAmount + taxAmount) * 100) / 100;
+    }
+
+    /* ------------------ HEADER ------------------ */
+
+    // Invoice Title
+    doc.setFontSize(22);
+    doc.setTextColor(...primaryColor);
+    doc.text("INVOICE", 150, 20, { align: "right" });
+
+    // Company Info
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.text(companyName, 20, 20);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.text(companyAddress, 20, 26);
+    doc.text(`Phone: ${companyPhone}`, 20, 31);
+    doc.text(`Email: ${companyEmail}`, 20, 36);
+
+    // Invoice meta
+    doc.setFontSize(10);
+    doc.text(`Invoice #: ${invoiceNumber}`, 150, 30, { align: "right" });
+    doc.text(`Date: ${invoiceDate}`, 150, 35, { align: "right" });
+
+    /* ------------------ BILL TO ------------------ */
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Bill To:", 20, 55);
+    doc.setFont("helvetica", "normal");
+    doc.text(user?.username || "Customer", 20, 61);
+    doc.text(user?.email || "", 20, 66);
+
+    /* ------------------ TABLE ------------------ */
+
+    autoTable(doc, {
+      startY: 75,
+      head: [["Description", "Amount"]],
+      body: [
+        [`Tour Package: ${booking?.tourName || booking?.tour_name || "N/A"}`, `Rs. ${totalAmount.toFixed(2)}`],
+        ["GST (5%)", `Rs. ${taxAmount.toFixed(2)}`],
+        ["Grand Total", `Rs. ${finalAmount.toFixed(2)}`]
+      ],
+      theme: "grid",
+      styles: { fontSize: 10, cellPadding: 5 },
+      headStyles: { 
+        fillColor: primaryColor,
+        textColor: [255, 255, 255],
+        fontStyle: 'bold'
+      },
+      columnStyles: {
+        0: { cellWidth: 120 },
+        1: { cellWidth: 60, halign: "right" }
+      }
+    });
+
+    const finalY = doc.lastAutoTable.finalY + 15;
+
+    /* ------------------ FOOTER ------------------ */
+
+    doc.setFontSize(10);
+    doc.text(
+      "Thank you for choosing Rima Tours & Travels. We wish you a pleasant journey!",
+      105,
+      finalY,
+      { align: "center" }
+    );
+
+    // Signature line
+    doc.line(140, finalY + 25, 190, finalY + 25);
+    doc.text("Authorized Signature", 165, finalY + 30, { align: "center" });
+
+    /* ------------------ SAVE ------------------ */
+    doc.save(`Invoice_${booking.id}.pdf`);
+    message.success("Invoice downloaded successfully!");
+  } catch (error) {
+    console.error("Error generating invoice:", error);
+    message.error("Failed to generate invoice. Please try again.");
+  }
+};
+
+
   const columns = [
+    // ... (keep previous columns)
     {
       title: "Booking ID",
       dataIndex: "id",
@@ -138,13 +323,44 @@ const MyBookings = () => {
       title: "Amount",
       dataIndex: "totalAmount",
       key: "totalAmount",
-      render: (amount) => <Text>₹{amount.toLocaleString()}</Text>,
+      render: (amount, record) => {
+        const displayAmount = amount || record.total_price || 0;
+        return (
+          <Text strong style={{ color: '#52c41a' }}>
+            ₹{parseFloat(displayAmount).toLocaleString('en-IN', {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2
+            })}
+          </Text>
+        );
+      },
     },
     {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      render: (status) => <Tag color={statusColors[status]}>{status}</Tag>,
+      render: (status) => {
+        const labels = {
+          REFUND_PENDING: "REFUND PENDING",
+          CANCELLED_REFUNDED: "CANCELLED & REFUNDED",
+          CANCELLED_NOT_REFUNDED: "CANCELLED & REFUND REJECTED",
+        };
+        return <Tag color={statusColors[status]}>{labels[status] || status}</Tag>;
+      },
+    },
+    {
+      title: "Invoice",
+      key: "invoice",
+      render: (_, record) => (
+        <Button
+          type="link"
+          icon={<FilePdfFilled />}
+          onClick={() => handleDownloadInvoice(record)}
+          disabled={record.status === 'CANCELLED'}
+        >
+          Download
+        </Button>
+      )
     },
     {
       title: "Actions",
@@ -156,7 +372,7 @@ const MyBookings = () => {
               danger
               size="small"
               icon={<DeleteOutlined />}
-              onClick={() => { setSelectedBooking(record); setModalVisible(true); }}
+              onClick={() => handleCancelClick(record)}
             >
               Cancel
             </Button>
@@ -185,7 +401,23 @@ const MyBookings = () => {
     },
   ];
 
+  const inquiryColumns = [
+    { title: 'Subject', dataIndex: 'subject', key: 'subject', render: text => <Text strong>{text || 'General Inquiry'}</Text> },
+    { title: 'Message', dataIndex: 'message', key: 'message', ellipsis: true },
+    { title: 'Response', dataIndex: 'admin_response', key: 'admin_response', render: text => text ? <Text type="success">{text}</Text> : <Tag color="orange">Pending</Tag> },
+    { title: 'Date', dataIndex: 'created_at', key: 'date', render: date => new Date(date).toLocaleDateString() }
+  ];
+
   if (loading) return <div style={{ height: '80vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}><Spin size="large" /></div>;
+
+  if (!user) {
+    return (
+      <div style={{ height: '80vh', display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+        <Title level={3}>Please log in to view your bookings</Title>
+        <Button type="primary" onClick={() => navigate('/login')}>Go to Login</Button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: 'var(--bg-secondary)', minHeight: '100vh', padding: 'var(--spacing-3xl) 0' }}>
@@ -236,6 +468,19 @@ const MyBookings = () => {
                     />
                   ),
                 },
+                {
+                  key: "inquiries",
+                  label: "My Inquiries",
+                  children: (
+                    <Table
+                      columns={inquiryColumns}
+                      dataSource={inquiries}
+                      rowKey="id"
+                      pagination={{ pageSize: 8 }}
+                      locale={{ emptyText: <Empty description="No inquiries found" /> }}
+                    />
+                  ),
+                },
               ]}
             />
           </Card>
@@ -246,16 +491,67 @@ const MyBookings = () => {
       <Modal
         title="Cancel Booking"
         open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        footer={[
-          <Button key="back" onClick={() => setModalVisible(false)}>Keep Booking</Button>,
-          <Button key="submit" type="primary" danger loading={cancelLoading} onClick={() => handleCancelBooking(selectedBooking?.id)}>
-            Confirm Cancellation
-          </Button>,
-        ]}
+        onCancel={() => {
+          setModalVisible(false);
+          setRefundInfo(null);
+        }}
+        footer={null}
+        width={600}
       >
-        <p>Are you sure you want to cancel your booking for <strong>{selectedBooking?.tourName}</strong>?</p>
-        <Alert  message="Refund Policy: Cancellations made 24 hours prior are eligible for full refund." type="info" showIcon />
+        <div style={{ marginBottom: '20px' }}>
+          <p>Are you sure you want to cancel your booking for <strong>{selectedBooking?.tourName}</strong>?</p>
+          
+          {refundLoading ? (
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <Spin size="small" />
+              <span style={{ marginLeft: '10px' }}>Loading refund policy...</span>
+            </div>
+          ) : refundInfo ? (
+            <Alert
+              message="Refund Policy"
+              description={
+                <div>
+                  <p><strong>Refund Amount:</strong> ₹{refundInfo.refund_amount?.toFixed(2)} ({refundInfo.refund_percentage?.toFixed(0)}% of total)</p>
+                  <p><strong>Policy:</strong> {refundInfo.reason}</p>
+                  {refundInfo.refund_amount > 0 ? (
+                    <p style={{ color: '#52c41a', fontWeight: 'bold' }}>✓ You are eligible for a refund</p>
+                  ) : (
+                    <p style={{ color: '#ff4d4f', fontWeight: 'bold' }}>✗ No refund available</p>
+                  )}
+                </div>
+              }
+              type={refundInfo.can_get_refund ? "success" : "warning"}
+              showIcon
+            />
+          ) : (
+            <Alert 
+              message="Refund Policy" 
+              description="Unable to load refund policy information" 
+              type="error" 
+              showIcon 
+            />
+          )}
+        </div>
+
+        <Form form={cancelForm} layout="vertical" onFinish={handleCancelBooking}>
+          <Form.Item
+            name="cancellation_reason"
+            label="Reason for Cancellation"
+            rules={[{ required: true, message: 'Please provide a reason for cancellation' }]}
+          >
+            <TextArea rows={4} placeholder="Please tell us why you are cancelling..." />
+          </Form.Item>
+
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={() => {
+              setModalVisible(false);
+              setRefundInfo(null);
+            }}>Keep Booking</Button>
+            <Button type="primary" danger htmlType="submit" loading={cancelLoading}>
+              Confirm Cancellation
+            </Button>
+          </Space>
+        </Form>
       </Modal>
 
       <Modal
@@ -274,7 +570,7 @@ const MyBookings = () => {
           <Button type="primary" htmlType="submit" block>Submit Review</Button>
         </Form>
       </Modal>
-    </div>
+    </div >
   );
 };
 

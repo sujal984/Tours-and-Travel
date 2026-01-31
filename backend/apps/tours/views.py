@@ -9,7 +9,12 @@ from django.db.models import Q, Avg
 from django.db import transaction
 from apps.core.viewsets import BaseViewSet
 from apps.core.permissions import IsAdminUser, IsCustomerUser, IsOwnerOrAdmin
+from rest_framework.permissions import IsAuthenticated
 from apps.core.response import APIResponse
+from apps.core.pagination import NoPagination, AdminListPagination
+import logging
+
+logger = logging.getLogger(__name__)
 from .models import (
     Destination, Tour, TourPackage, Hotel, Vehicle,
     Offer, CustomPackage, Inquiry, Season, TourPricing,
@@ -31,6 +36,7 @@ class SeasonViewSet(BaseViewSet):
     """ViewSet for managing seasons"""
     queryset = Season.objects.all()
     serializer_class = SeasonSerializer
+    pagination_class = NoPagination  # No pagination for dropdown lists
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -44,6 +50,7 @@ class TourPricingViewSet(BaseViewSet):
     """ViewSet for managing tour pricings"""
     queryset = TourPricing.objects.select_related('tour', 'season').all()
     serializer_class = TourPricingSerializer
+    pagination_class = AdminListPagination
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -57,6 +64,7 @@ class TourItineraryViewSet(BaseViewSet):
     """ViewSet for managing itineraries"""
     queryset = TourItinerary.objects.select_related('destination', 'tour').all()
     serializer_class = TourItinerarySerializer
+    pagination_class = NoPagination  # No pagination for dropdown lists
 
     def get_permissions(self):
         if self.action in ['create', 'update', 'partial_update', 'destroy']:
@@ -70,6 +78,7 @@ class DestinationViewSet(BaseViewSet):
     """ViewSet for managing destinations"""
     queryset = Destination.objects.all()
     serializer_class = DestinationSerializer
+    pagination_class = NoPagination  # No pagination for dropdown lists
 
     def get_permissions(self):
         """Set permissions based on action"""
@@ -90,6 +99,7 @@ class DestinationViewSet(BaseViewSet):
 class TourViewSet(BaseViewSet):
     """ViewSet for managing tours"""
     queryset = Tour.objects.select_related('primary_destination').prefetch_related('destinations', 'packages', 'seasonal_pricings__season')
+    pagination_class = AdminListPagination  # Use admin pagination for tours
 
     def get_serializer_class(self):
         """Return appropriate serializer based on action"""
@@ -108,8 +118,11 @@ class TourViewSet(BaseViewSet):
     def get_queryset(self):
         """Filter active tours for non-admin users"""
         queryset = super().get_queryset()
+        
+        # Filter active tours for non-admin users
         if not (self.request.user.is_authenticated and getattr(self.request.user, 'is_admin', False)):
             queryset = queryset.filter(is_active=True)
+        
         return queryset
 
     @action(detail=False, methods=['get'])
@@ -316,6 +329,7 @@ class HotelViewSet(BaseViewSet):
     """ViewSet for managing hotels"""
     queryset = Hotel.objects.select_related('destination')
     serializer_class = HotelSerializer
+    pagination_class = NoPagination  # No pagination for dropdown lists
 
     def get_permissions(self):
         """Set permissions based on action"""
@@ -337,6 +351,7 @@ class VehicleViewSet(BaseViewSet):
     """ViewSet for managing vehicles"""
     queryset = Vehicle.objects.all()
     serializer_class = VehicleSerializer
+    pagination_class = NoPagination  # No pagination for dropdown lists
 
     def get_permissions(self):
         """Set permissions based on action"""
@@ -396,23 +411,28 @@ class OfferViewSet(BaseViewSet):
 class CustomPackageViewSet(BaseViewSet):
     """ViewSet for managing custom packages"""
     serializer_class = CustomPackageSerializer
+    pagination_class = AdminListPagination  # Use admin pagination for custom packages
 
     def get_permissions(self):
         """Set permissions based on action"""
-        if self.action in ['list', 'update', 'partial_update']:
+        if self.action in ['update', 'partial_update', 'convert_to_booking']:
             permission_classes = [IsAdminUser]
-        elif self.action in ['retrieve', 'destroy']:
-            permission_classes = [IsOwnerOrAdmin]
-        else:  # create - allow anonymous submissions
-            permission_classes = []
+        elif self.action in ['list', 'retrieve', 'destroy', 'customer_response']:
+            permission_classes = [IsAuthenticated]  # Allow authenticated users to see their own packages
+        elif self.action == 'create':
+            permission_classes = []  # Allow anonymous submissions
+        else:
+            permission_classes = [IsAuthenticated]
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
         """Filter custom packages based on user role"""
-        if self.request.user.is_admin:
+        if self.request.user.is_authenticated and hasattr(self.request.user, 'role') and self.request.user.role == 'ADMIN':
             return CustomPackage.objects.select_related('customer').all()
-        else:
+        elif self.request.user.is_authenticated:
             return CustomPackage.objects.filter(customer=self.request.user)
+        else:
+            return CustomPackage.objects.none()
 
     def create(self, request, *args, **kwargs):
         """Create a new custom package request"""
@@ -439,6 +459,131 @@ class CustomPackageViewSet(BaseViewSet):
                 status_code=status.HTTP_400_BAD_REQUEST
             )
 
+    @action(detail=True, methods=['post'])
+    def customer_response(self, request, pk=None):
+        """Allow customer to respond to admin quote"""
+        from django.utils import timezone
+        
+        custom_package = self.get_object()
+        
+        # Check if customer can respond (must have a quote and be the owner)
+        if not custom_package.quoted_price:
+            return APIResponse.error(
+                message="No quote available to respond to",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if custom_package.customer_response != 'PENDING':
+            return APIResponse.error(
+                message="You have already responded to this quote",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        response_type = request.data.get('response')
+        if response_type not in ['ACCEPTED', 'REJECTED']:
+            return APIResponse.error(
+                message="Response must be either 'ACCEPTED' or 'REJECTED'",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            with transaction.atomic():
+                custom_package.customer_response = response_type
+                custom_package.customer_response_date = timezone.now()
+                
+                # Update status based on response
+                if response_type == 'ACCEPTED':
+                    custom_package.status = 'CONFIRMED'
+                else:
+                    custom_package.status = 'CANCELLED'
+                
+                custom_package.save()
+                
+                logger.info(f"Customer response recorded for package #{custom_package.id}: {response_type}")
+                
+                return APIResponse.success(
+                    data={
+                        'id': custom_package.id,
+                        'customer_response': custom_package.customer_response,
+                        'status': custom_package.status,
+                        'customer_response_date': custom_package.customer_response_date
+                    },
+                    message=f"Quote {response_type.lower()} successfully",
+                    status_code=status.HTTP_200_OK
+                )
+        except Exception as e:
+            logger.error(f"Error recording customer response: {str(e)}")
+            return APIResponse.error(
+                message="Failed to record response",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'])
+    def convert_to_booking(self, request, pk=None):
+        """Convert a confirmed custom package to a booking"""
+        from apps.bookings.models import Booking
+        from apps.bookings.serializers import BookingSerializer
+        
+        custom_package = self.get_object()
+        
+        if custom_package.status != 'CONFIRMED':
+            return APIResponse.error(
+                message="Only confirmed custom packages can be converted to bookings",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get tour_id from request data
+        tour_id = request.data.get('tour_id')
+        if not tour_id:
+            return APIResponse.error(
+                message="Tour ID is required for booking conversion",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            from apps.tours.models import Tour
+            tour = Tour.objects.get(id=tour_id)
+        except Tour.DoesNotExist:
+            return APIResponse.error(
+                message="Tour not found",
+                status_code=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Create booking data from custom package
+        booking_data = {
+            'user': custom_package.customer,
+            'tour': tour,
+            'travelers_count': custom_package.participants_count,
+            'total_price': custom_package.quoted_price or 0,
+            'travel_date': custom_package.start_date,
+            'special_requests': custom_package.special_requirements,
+            'contact_number': custom_package.contact_number,
+            'traveler_details': []  # Can be filled later
+        }
+        
+        try:
+            with transaction.atomic():
+                booking = Booking.objects.create(**booking_data)
+                
+                # Update custom package status
+                custom_package.status = 'PROCESSING'
+                custom_package.admin_notes = f"Converted to booking #{booking.id}"
+                custom_package.save()
+                
+                logger.info(f"Custom package #{custom_package.id} converted to booking #{booking.id}")
+                
+                return APIResponse.success(
+                    data={'booking_id': booking.id, 'custom_package_id': custom_package.id},
+                    message="Custom package converted to booking successfully",
+                    status_code=status.HTTP_201_CREATED
+                )
+        except Exception as e:
+            logger.error(f"Error converting custom package to booking: {str(e)}")
+            return APIResponse.error(
+                message="Failed to convert custom package to booking",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class InquiryViewSet(BaseViewSet):
     """ViewSet for managing inquiries"""
@@ -446,17 +591,17 @@ class InquiryViewSet(BaseViewSet):
 
     def get_permissions(self):
         """Set permissions based on action"""
-        if self.action in ['list', 'update', 'partial_update']:
+        if self.action in ['update', 'partial_update', 'admin_response']:
             permission_classes = [IsAdminUser]
-        elif self.action in ['retrieve', 'destroy']:
-            permission_classes = [IsOwnerOrAdmin]
+        elif self.action in ['list', 'retrieve', 'destroy', 'associate_anonymous']:
+            permission_classes = [IsAuthenticated]  # Allow authenticated users to see their own inquiries
         else:  # create
             permission_classes = []  # Allow anonymous inquiries
         return [permission() for permission in permission_classes]
 
     def get_queryset(self):
         """Filter inquiries based on user role"""
-        if self.request.user.is_authenticated and self.request.user.is_admin:
+        if self.request.user.is_authenticated and hasattr(self.request.user, 'role') and self.request.user.role == 'ADMIN':
             return Inquiry.objects.select_related('tour', 'customer').all()
         elif self.request.user.is_authenticated:
             return Inquiry.objects.filter(customer=self.request.user)
@@ -473,8 +618,13 @@ class InquiryViewSet(BaseViewSet):
             
             logger.info(f"Inquiry created: {inquiry.name} - {inquiry.email}")
             
+            # Return inquiry data with anonymous_token for guest users
+            response_data = serializer.data
+            if not customer and inquiry.anonymous_token:
+                response_data['anonymous_token'] = inquiry.anonymous_token
+            
             return APIResponse.success(
-                data=serializer.data,
+                data=response_data,
                 message="Inquiry submitted successfully",
                 status_code=status.HTTP_201_CREATED
             )
@@ -483,4 +633,90 @@ class InquiryViewSet(BaseViewSet):
                 message="Inquiry submission failed",
                 errors=serializer.errors,
                 status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=False, methods=['post'])
+    def associate_anonymous(self, request):
+        """Associate anonymous inquiries with logged-in user"""
+        anonymous_tokens = request.data.get('anonymous_tokens', [])
+        
+        if not anonymous_tokens:
+            return APIResponse.error(
+                message="No anonymous tokens provided",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            with transaction.atomic():
+                # Find inquiries with matching anonymous tokens
+                # Match by token OR by email (for cases where user used same email)
+                inquiries = Inquiry.objects.filter(
+                    Q(anonymous_token__in=anonymous_tokens) | 
+                    Q(email=request.user.email, customer__isnull=True),
+                    customer__isnull=True  # Only unassociated inquiries
+                )
+                
+                updated_count = inquiries.update(
+                    customer=request.user,
+                    anonymous_token=None  # Clear token after association
+                )
+                
+                logger.info(f"Associated {updated_count} anonymous inquiries with user {request.user.email}")
+                
+                # Get the updated inquiries to return
+                associated_inquiries = Inquiry.objects.filter(
+                    customer=request.user
+                ).order_by('-created_at')
+                
+                serializer = self.get_serializer(associated_inquiries, many=True)
+                
+                return APIResponse.success(
+                    data={
+                        'associated_count': updated_count,
+                        'inquiries': serializer.data
+                    },
+                    message=f"Successfully associated {updated_count} inquiries with your account",
+                    status_code=status.HTTP_200_OK
+                )
+                
+        except Exception as e:
+            logger.error(f"Error associating anonymous inquiries: {str(e)}")
+            return APIResponse.error(
+                message="Failed to associate inquiries",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'])
+    def admin_response(self, request, pk=None):
+        """Allow admin to respond to an inquiry"""
+        inquiry = self.get_object()
+        
+        admin_response = request.data.get('admin_response', '').strip()
+        if not admin_response:
+            return APIResponse.error(
+                message="Admin response is required",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            with transaction.atomic():
+                inquiry.admin_response = admin_response
+                inquiry.status = 'RESPONDED'
+                inquiry.save()
+                
+                logger.info(f"Admin {request.user.email} responded to inquiry #{inquiry.id}")
+                
+                serializer = self.get_serializer(inquiry)
+                
+                return APIResponse.success(
+                    data=serializer.data,
+                    message="Response added successfully",
+                    status_code=status.HTTP_200_OK
+                )
+                
+        except Exception as e:
+            logger.error(f"Error adding admin response: {str(e)}")
+            return APIResponse.error(
+                message="Failed to add response",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

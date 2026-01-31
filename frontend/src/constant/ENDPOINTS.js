@@ -18,10 +18,16 @@ export const endpoints = {
   // Destinations
   GET_DESTINATIONS: "/tours/destinations/",
   GET_DESTINATION_DETAIL: (id) => `/tours/destinations/${id}/`,
+  CREATE_DESTINATION: "/tours/destinations/",
+  UPDATE_DESTINATION: (id) => `/tours/destinations/${id}/`,
+  DELETE_DESTINATION: (id) => `/tours/destinations/${id}/`,
 
   // Hotels
   GET_HOTELS: "/tours/hotels/",
   GET_HOTEL_DETAIL: (id) => `/tours/hotels/${id}/`,
+  CREATE_HOTEL: "/tours/hotels/",
+  UPDATE_HOTEL: (id) => `/tours/hotels/${id}/`,
+  DELETE_HOTEL: (id) => `/tours/hotels/${id}/`,
 
   // Vehicles
   GET_VEHICLES: "/tours/vehicles/",
@@ -36,11 +42,14 @@ export const endpoints = {
   SUBMIT_INQUIRY: "/tours/inquiries/",
   GET_INQUIRIES: "/tours/inquiries/",
   GET_INQUIRY_DETAIL: (id) => `/tours/inquiries/${id}/`,
+  ASSOCIATE_ANONYMOUS_INQUIRIES: "/tours/inquiries/associate_anonymous/",
+  ADMIN_RESPOND_INQUIRY: (id) => `/tours/inquiries/${id}/admin_response/`,
 
   // Custom Packages
   CREATE_CUSTOM_PACKAGE: "/tours/custom-packages/",
   GET_CUSTOM_PACKAGES: "/tours/custom-packages/",
   GET_CUSTOM_PACKAGE_DETAIL: (id) => `/tours/custom-packages/${id}/`,
+  CONVERT_CUSTOM_PACKAGE_TO_BOOKING: (id) => `/tours/custom-packages/${id}/convert_to_booking/`,
 
   // Seasons
   GET_SEASONS: "/tours/seasons/",
@@ -63,6 +72,7 @@ export const endpoints = {
   GET_BOOKING_DETAIL: (id) => `/bookings/${id}/`,
   UPDATE_BOOKING: (id) => `/bookings/${id}/`,
   CANCEL_BOOKING: (id) => `/bookings/${id}/cancel/`,
+  GET_BOOKING_REFUND_POLICY: (id) => `/bookings/${id}/refund_policy/`,
 
   // Payments
   CREATE_PAYMENT: "/payments/",
@@ -81,6 +91,7 @@ export const endpoints = {
 
   // Reviews
   CREATE_REVIEW: "/reviews/",
+  ADD_REVIEW: "/reviews/",
   GET_REVIEWS: "/reviews/",
   GET_REVIEW_DETAIL: (id) => `/reviews/${id}/`,
   GET_TOUR_REVIEWS: (tourId) => `/reviews/?tour=${tourId}`,

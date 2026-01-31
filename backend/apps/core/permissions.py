@@ -93,11 +93,13 @@ class IsOwnerOrAdmin(BasePermission):
         if hasattr(request.user, 'role') and request.user.role == 'ADMIN':
             return True
         
-        # Check if user owns the object
+        # Check if user owns the object (multiple possible field names)
         if hasattr(obj, 'user'):
             return obj.user == request.user
         elif hasattr(obj, 'owner'):
             return obj.owner == request.user
+        elif hasattr(obj, 'customer'):
+            return obj.customer == request.user
         
         return False
 

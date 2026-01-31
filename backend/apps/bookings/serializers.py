@@ -17,10 +17,12 @@ class BookingSerializer(serializers.ModelSerializer):
             'id', 'user', 'user_details', 'tour', 'tour_name', 'package', 'travelers_count',
             'total_price', 'status', 'booking_date', 'travel_date',
             'special_requests', 'traveler_details', 'contact_number',
-            'emergency_contact', 'can_review', 'can_cancel',
-            'tour_details', 'package_details', 'payment_details', 'created_at', 'updated_at'
+            'emergency_contact', 'cancellation_reason', 'can_review', 'can_cancel',
+            'tour_details', 'package_details', 'payment_details', 'aadhar_card',
+            'applied_offer_id', 'base_amount', 'discount_amount',
+            'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'user', 'booking_date', 'total_price', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'booking_date', 'created_at', 'updated_at']
 
     def get_user_details(self, obj):
         if obj.user:
@@ -57,7 +59,15 @@ class BookingSerializer(serializers.ModelSerializer):
         }
 
     def validate_traveler_details(self, value):
-        """Validate traveler details format"""
+        """Validate traveler details format. Handles JSON string from multipart form."""
+        import json
+        
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                raise serializers.ValidationError("Invalid JSON format for traveler_details")
+
         if not isinstance(value, list):
             raise serializers.ValidationError("Traveler details must be a list")
         
@@ -73,9 +83,12 @@ class BookingSerializer(serializers.ModelSerializer):
         return value
 
     def validate_travel_date(self, value):
-        """Validate travel date is in the future"""
+        """Validate travel date is at least 15 days in the future"""
         if value:
             from django.utils import timezone
-            if value <= timezone.now().date():
-                raise serializers.ValidationError("Travel date must be in the future")
+            from datetime import timedelta
+            
+            min_date = timezone.now().date() + timedelta(days=10)
+            if value < min_date:
+                raise serializers.ValidationError("Bookings must be made at least 15 days in advance.")
         return value

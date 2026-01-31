@@ -21,8 +21,13 @@ import {
   StarFilled,
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
-import { apiClient } from "../../services/api";
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination, Autoplay } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
 
+import { apiClient } from "../../services/api";
 import { endpoints } from "../../constant/ENDPOINTS";
 
 const Home = () => {
@@ -31,35 +36,96 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [carouselItems, setCarouselItems] = useState([]);
 
+  const [destinations, setDestinations] = useState([]);
+
   useEffect(() => {
     fetchTours();
-    setCarouselItems([
-      {
-        url: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=1920&q=80",
-        title: "Discover Incredible India",
-        subtitle: "Experience the magic of diverse cultures and landscapes",
-      },
-      {
-        url: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1920&q=80",
-        title: "Adventure Awaits",
-        subtitle: "From mountain peaks to ocean depths, explore it all",
-      },
-      {
-        url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
-        title: "Serene Escapes",
-        subtitle: "Find your peace in the most beautiful destinations",
-      },
-    ]);
+    fetchDestinations();
   }, []);
+
+  const fetchDestinations = async () => {
+    try {
+      const response = await apiClient.get(endpoints.GET_DESTINATIONS);
+      const destinationsData = response.data?.data || response.data?.results || [];
+      setDestinations(destinationsData);
+      
+      // Create carousel items from destinations with images
+      const carouselData = [];
+      destinationsData.forEach(dest => {
+        if (dest.images && dest.images.length > 0) {
+          dest.images.forEach(img => {
+            carouselData.push({
+              url: img.image.startsWith('http') ? img.image : `http://127.0.0.1:8000${img.image}`,
+              title: `Discover ${dest.name}`,
+              subtitle: img.caption || `Experience the beauty of ${dest.name}`,
+            });
+          });
+        }
+      });
+      
+      // If we have destination images, use them, otherwise use fallback
+      if (carouselData.length > 0) {
+        setCarouselItems(carouselData);
+      } else {
+        setCarouselItems([
+          {
+            url: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=1920&q=80",
+            title: "Discover Incredible India",
+            subtitle: "Experience the magic of diverse cultures and landscapes",
+          },
+          {
+            url: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1920&q=80",
+            title: "Adventure Awaits",
+            subtitle: "From mountain peaks to ocean depths, explore it all",
+          },
+          {
+            url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
+            title: "Serene Escapes",
+            subtitle: "Find your peace in the most beautiful destinations",
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error("Error fetching destinations:", error);
+      // Fallback carousel items
+      setCarouselItems([
+        {
+          url: "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=1920&q=80",
+          title: "Discover Incredible India",
+          subtitle: "Experience the magic of diverse cultures and landscapes",
+        },
+        {
+          url: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1920&q=80",
+          title: "Adventure Awaits",
+          subtitle: "From mountain peaks to ocean depths, explore it all",
+        },
+        {
+          url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&q=80",
+          title: "Serene Escapes",
+          subtitle: "Find your peace in the most beautiful destinations",
+        },
+      ]);
+    }
+  };
 
   const fetchTours = async () => {
     try {
       setLoading(true);
       const response = await apiClient.get(endpoints.GET_ALL_TOURS);
       // console.log("Tours Response:", response.data);
-      const toursData = response?.data?.data || [];
-      // Just take first 4 for home page
-      setTours(toursData.slice(0, 4));
+      const toursData = (response?.data?.data || []).map(t => {
+        const basePrice = Number(t.base_price) || 0;
+        const currentPrice = Number(t.current_price) || 0;
+        const seasonalPrices = (t.seasonal_pricings || []).map(p => Number(p.two_sharing_price)).filter(p => !isNaN(p) && p > 0);
+        
+        // Use the minimum of all available prices, with base_price as fallback
+        const allPrices = [currentPrice, basePrice, ...seasonalPrices].filter(p => !isNaN(p) && p > 0);
+        const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : basePrice;
+        
+        return { ...t, startingPrice: minPrice };
+      });
+      // Set all tours for the carousel
+      setTours(toursData);
     } catch (error) {
       console.error("Error fetching tours:", error);
     } finally {
@@ -317,81 +383,122 @@ const Home = () => {
             viewport={{ once: true, margin: "-50px" }}
             variants={containerVariants}
           >
-            <Row gutter={[32, 32]}>
-              {tours?.length > 0 ? tours.map((tour, index) => (
-                <Col key={tour.id} xs={24} sm={12} lg={6}>
-                  <motion.div variants={itemVariants} style={{ height: '100%' }}>
-                    <Card
-                      className="custom-card"
-                      hoverable
-                      cover={
-                        <div style={{ position: 'relative', overflow: 'hidden', height: '240px' }}>
-                          <img
-                            alt={tour.name}
-                            src={
-                              tour.featured_image ||
-                              `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&h=240&fit=crop`
-                            }
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                          <div style={{
-                            position: 'absolute',
-                            top: '15px',
-                            right: '15px',
-                            background: 'rgba(255,255,255,0.9)',
-                            padding: '5px 10px',
-                            borderRadius: '20px',
-                            fontSize: '0.8rem',
-                            fontWeight: 'bold',
-                            color: 'var(--primary-color)'
-                          }}>
-                            {tour.category || "Hot Deal"}
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '50px 0' }}>
+                <Spin />
+                <p style={{ marginTop: '10px' }}>Loading amazing tours...</p>
+              </div>
+            ) : tours?.length > 0 ? (
+              <Swiper
+                modules={[Navigation, Pagination, Autoplay]}
+                spaceBetween={32}
+                slidesPerView={1}
+                navigation
+                pagination={{ clickable: true }}
+                autoplay={{ delay: 3000, disableOnInteraction: false }}
+                breakpoints={{
+                  640: {
+                    slidesPerView: 2,
+                  },
+                  1024: {
+                    slidesPerView: 3,
+                  },
+                  1280: {
+                    slidesPerView: 4,
+                  },
+                }}
+                style={{ paddingBottom: '50px' }}
+              >
+                {tours.map((tour, index) => (
+                  <SwiperSlide key={tour.id} style={{ height: 'auto' }}>
+                    <motion.div variants={itemVariants} style={{ height: '100%' }}>
+                      <Card
+                        className="custom-card"
+                        hoverable
+                        cover={
+                          <div style={{ position: 'relative', overflow: 'hidden', height: '240px' }}>
+                            <img
+                              alt={tour.name}
+                              src={
+                                tour.featured_image ||
+                                (tour.destinations && tour.destinations.length > 0 && tour.destinations[0].images && tour.destinations[0].images.length > 0 
+                                  ? (tour.destinations[0].images[0].image.startsWith('http') 
+                                      ? tour.destinations[0].images[0].image 
+                                      : `http://127.0.0.1:8000${tour.destinations[0].images[0].image}`)
+                                  : `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&h=240&fit=crop`)
+                              }
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                            <div style={{
+                              position: 'absolute',
+                              top: '15px',
+                              right: '15px',
+                              background: 'rgba(255,255,255,0.9)',
+                              padding: '5px 10px',
+                              borderRadius: '20px',
+                              fontSize: '0.8rem',
+                              fontWeight: 'bold',
+                              color: 'var(--primary-color)'
+                            }}>
+                              {tour.category || "Hot Deal"}
+                            </div>
                           </div>
-                        </div>
-                      }
-                      bodyStyle={{ padding: '0', display: 'flex', flexDirection: 'column', height: 'calc(100% - 240px)' }}
-                      onClick={() => navigate(`/tours/${tour.id}`)}
-                    >
-                      <div className="tour-card-content">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
-                          <ClockCircleOutlined /> {tour.duration_days || "5"} Days
-                          <span style={{ margin: '0 5px' }}>•</span>
-                          <EnvironmentOutlined /> {tour.location || "India"}
-                        </div>
-                        <h3 className="tour-title" style={{ height: '50px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                          {tour.name}
-                        </h3>
+                        }
+                        bodyStyle={{ padding: '0', display: 'flex', flexDirection: 'column', height: 'calc(100% - 240px)' }}
+                        onClick={() => navigate(`/tours/${tour.id}`)}
+                      >
+                        <div className="tour-card-content">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
+                            <ClockCircleOutlined /> {tour.duration_days || "5"} Days
+                            <span style={{ margin: '0 5px' }}>•</span>
+                            <EnvironmentOutlined /> {tour.location || "India"}
+                          </div>
+                          <h3 className="tour-title" style={{ height: '50px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                            {tour.name}
+                          </h3>
 
-                        <div className="tour-price-section">
-                          <div>
-                            <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>From</span>
-                            <div className="tour-price">₹{tour.base_price?.toLocaleString() || "15,000"}</div>
+                          <div className="tour-price-section">
+                            <div>
+                              <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>From</span>
+                              <div className="tour-price">₹{tour.startingPrice?.toLocaleString() || "15,000"}</div>
+                            </div>
+                            <Button
+                              type="primary"
+                              shape="circle"
+                              icon={<ArrowRightOutlined />}
+                              className="btn-primary-gradient"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/tours/${tour.id}`);
+                              }}
+                            />
                           </div>
-                          <Button
-                            type="primary"
-                            shape="circle"
-                            icon={<ArrowRightOutlined />}
-                            className="btn-primary-gradient"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/tours/${tour.id}`);
-                            }}
-                          />
                         </div>
-                      </div>
-                    </Card>
-                  </motion.div>
-                </Col>
-              )) : (
-                <Col span={24} style={{ textAlign: 'center', padding: '50px 0' }}>
-                  <Spin />
-                  <p style={{ marginTop: '10px' }}>Loading amazing tours...</p>
-                </Col>
-              )}
-            </Row>
+                      </Card>
+                    </motion.div>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '50px 0' }}>
+                <div style={{ 
+                  fontSize: '3rem', 
+                  color: 'var(--text-tertiary)', 
+                  marginBottom: '16px' 
+                }}>
+                  🏖️
+                </div>
+                <h3 style={{ color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  No Tours Available Yet
+                </h3>
+                <p style={{ color: 'var(--text-tertiary)' }}>
+                  We're working on adding amazing tour packages. Check back soon!
+                </p>
+              </div>
+            )}
 
             <div style={{ textAlign: 'center', marginTop: '3rem' }}>
-              <Button size="large" onClick={() => navigate('/tours')} className="btn-secondary">View All Packages</Button>
+              <Button disabled={tours?.length <= 0} size="large" onClick={() => navigate('/tours')} className="btn-secondary">View All Packages</Button>
             </div>
           </motion.div>
         </div>

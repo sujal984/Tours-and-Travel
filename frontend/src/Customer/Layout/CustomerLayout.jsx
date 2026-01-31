@@ -1,11 +1,22 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import InquiryButton from '../components/InquiryButton';
 
+sessionStorage.setItem("alreadyReload",true)
+
 const CustomerLayout = () => {
+  useEffect(() => {
+    const alreadyReloaded = sessionStorage.getItem("alreadyReload");
+
+    if (!alreadyReloaded) {
+      sessionStorage.setItem("alreadyReload", "true");
+      window.location.reload();
+    }
+  }, []);
     return (
         <div className="customer-site">
             <Navbar />

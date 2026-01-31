@@ -134,19 +134,7 @@ const AdminLayout = () => {
     };
 
     const userMenuItems = [
-        {
-            key: 'profile',
-            icon: <UserOutlined />,
-            label: 'Profile Settings',
-        },
-        {
-            key: 'settings',
-            icon: <SettingOutlined />,
-            label: 'System Settings',
-        },
-        {
-            type: 'divider',
-        },
+
         {
             key: 'logout',
             icon: <LogoutOutlined />,
@@ -182,6 +170,11 @@ const AdminLayout = () => {
                     defaultOpenKeys={findOpenKeys()}
                     items={menuItems}
                     onClick={handleMenuClick}
+                    style={{
+                        height: 'calc(100vh - 64px)',
+                        overflowY: 'auto',
+                        border: 'none'
+                    }}
                 />
             </Sider>
 

@@ -195,6 +195,28 @@ class Destination(BaseModel):
         return self.name
 
 
+class DestinationImage(BaseModel):
+    """
+    Multiple images for a destination (for Hero Carousel)
+    """
+    destination = models.ForeignKey(
+        Destination,
+        related_name='images',
+        on_delete=models.CASCADE
+    )
+    image = models.ImageField(upload_to='destinations/images/')
+    caption = models.CharField(max_length=200, blank=True)
+    is_featured = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'tours_destinationimage'
+        verbose_name = 'Destination Image'
+        verbose_name_plural = 'Destination Images'
+
+    def __str__(self):
+        return f"Image for {self.destination.name}"
+
+
 class Tour(BaseModel):
     """
     Main Tour model with comprehensive tour information
@@ -212,6 +234,13 @@ class Tour(BaseModel):
         ('BUSINESS', 'Business'),
         ('WILDLIFE', 'Wildlife'),
         ('SPIRITUAL', 'Spiritual'),
+        ('FAMILY', 'Family Tours'),
+        ('HONEYMOON', 'Honeymoon Packages'),
+    ]
+
+    TOUR_TYPE_CHOICES = [
+        ('DOMESTIC', 'Domestic'),
+        ('INTERNATIONAL', 'International'),
     ]
 
     name = models.CharField(max_length=200, unique=True)
@@ -238,9 +267,29 @@ class Tour(BaseModel):
     base_price = models.DecimalField(
         max_digits=10, 
         decimal_places=2,
-        validators=[MinValueValidator(0)]
+        validators=[MinValueValidator(0)],
+        null=True,
+        blank=True,
+        help_text="Adult Base Price per person"
+    )
+    child_price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        default=0,
+        help_text="Child Price per person (4-11 years)"
+    )
+    tour_type = models.CharField(
+        max_length=20,
+        choices=TOUR_TYPE_CHOICES,
+        default='DOMESTIC'
     )
     is_active = models.BooleanField(default=True)
+    available_dates = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Direct list of available dates (YYYY-MM-DD)"
+    )
     featured_image = models.ImageField(
         upload_to='tours/images/', 
         null=True, 
@@ -291,7 +340,7 @@ class Tour(BaseModel):
     pricing_details = models.JSONField(
         default=dict,
         blank=True,
-        help_text="Detailed pricing: {season: {dates: [], two_sharing: 0, three_sharing: 0, child_price: 0}}"
+        help_text="DEPRECATED: Use seasonal_pricings relation instead"
     )
     special_notes = models.TextField(
         blank=True,
@@ -355,7 +404,7 @@ class Tour(BaseModel):
                 return pricing.price
             except TourPricing.DoesNotExist:
                 pass
-        return self.base_price
+        return self.base_price or 0
 
     def get_seasonal_prices(self):
         """Get all seasonal prices for this tour"""
@@ -480,6 +529,34 @@ class Hotel(BaseModel):
         return f"{self.name} ({self.destination.name})"
 
 
+class RoomType(BaseModel):
+    """
+    Specific room types for hotels (Deluxe, Suite, etc.)
+    """
+    hotel = models.ForeignKey(
+        Hotel,
+        related_name='room_types',
+        on_delete=models.CASCADE
+    )
+    name = models.CharField(max_length=100)  # e.g., Deluxe, Super Deluxe, Suite
+    capacity = models.PositiveIntegerField(default=2)
+    price_modifier = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Additional cost per night for this room type"
+    )
+    description = models.TextField(blank=True)
+    
+    class Meta:
+        db_table = 'tours_roomtype'
+        verbose_name = 'Room Type'
+        verbose_name_plural = 'Room Types'
+
+    def __str__(self):
+        return f"{self.name} - {self.hotel.name}"
+
+
 class Vehicle(BaseModel):
     """
     Vehicle information for tours
@@ -505,13 +582,34 @@ class Offer(BaseModel):
     """
     Special offers and discounts for tours
     """
+    DISCOUNT_TYPE_CHOICES = [
+        ('PERCENTAGE', 'Percentage'),
+        ('FIXED_AMOUNT', 'Fixed Amount'),
+    ]
+    
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
+    discount_type = models.CharField(
+        max_length=15,
+        choices=DISCOUNT_TYPE_CHOICES,
+        default='PERCENTAGE',
+        help_text="Type of discount: percentage or fixed amount"
+    )
     discount_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text="Enter percentage value (e.g., 10 for 10%)"
+        help_text="Enter percentage value (e.g., 10 for 10%)",
+        null=True,
+        blank=True
+    )
+    discount_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text="Enter fixed discount amount (e.g., 500 for ₹500 off)",
+        null=True,
+        blank=True
     )
     start_date = models.DateField()
     end_date = models.DateField()
@@ -528,8 +626,31 @@ class Offer(BaseModel):
         verbose_name = 'Offer'
         verbose_name_plural = 'Offers'
 
+    def clean(self):
+        """Validate that appropriate discount field is set based on discount_type"""
+        from django.core.exceptions import ValidationError
+        
+        if self.discount_type == 'PERCENTAGE':
+            if not self.discount_percentage:
+                raise ValidationError({'discount_percentage': 'Discount percentage is required for percentage-based offers.'})
+            if self.discount_amount:
+                raise ValidationError({'discount_amount': 'Discount amount should not be set for percentage-based offers.'})
+        elif self.discount_type == 'FIXED_AMOUNT':
+            if not self.discount_amount:
+                raise ValidationError({'discount_amount': 'Discount amount is required for fixed amount offers.'})
+            if self.discount_percentage:
+                raise ValidationError({'discount_percentage': 'Discount percentage should not be set for fixed amount offers.'})
+
+    def save(self, *args, **kwargs):
+        """Override save to run clean validation"""
+        self.clean()
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"{self.name} - {self.discount_percentage}%"
+        if self.discount_type == 'PERCENTAGE':
+            return f"{self.name} - {self.discount_percentage}%"
+        else:
+            return f"{self.name} - ₹{self.discount_amount}"
 
     @property
     def is_valid(self):
@@ -538,12 +659,34 @@ class Offer(BaseModel):
         today = timezone.now().date()
         return self.is_active and self.start_date <= today <= self.end_date
 
+    @property
+    def discount_display(self):
+        """Get formatted discount display"""
+        if self.discount_type == 'PERCENTAGE':
+            return f"{self.discount_percentage}%"
+        else:
+            return f"₹{self.discount_amount}"
+
     def calculate_discounted_price(self, original_price):
-        """Calculate discounted price"""
-        if self.is_valid:
+        """Calculate discounted price based on discount type"""
+        if not self.is_valid:
+            return original_price
+            
+        if self.discount_type == 'PERCENTAGE':
             discount_amount = (original_price * self.discount_percentage) / 100
-            return original_price - discount_amount
-        return original_price
+            return max(0, original_price - discount_amount)
+        else:  # FIXED_AMOUNT
+            return max(0, original_price - self.discount_amount)
+
+    def get_discount_amount(self, original_price):
+        """Get the actual discount amount for a given price"""
+        if not self.is_valid:
+            return 0
+            
+        if self.discount_type == 'PERCENTAGE':
+            return (original_price * self.discount_percentage) / 100
+        else:  # FIXED_AMOUNT
+            return min(self.discount_amount, original_price)  # Don't exceed original price
 
 
 class CustomPackage(BaseModel):
@@ -558,6 +701,14 @@ class CustomPackage(BaseModel):
         ('CANCELLED', 'Cancelled'),
     ]
 
+    BUDGET_CHOICES = [
+        ('under-25000', 'Under ₹25,000'),
+        ('25000-50000', '₹25,000 - ₹50,000'),
+        ('50000-100000', '₹50,000 - ₹1,00,000'),
+        ('100000-200000', '₹1,00,000 - ₹2,00,000'),
+        ('above-200000', 'Above ₹2,00,000'),
+    ]
+
     customer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         related_name='custom_packages',
@@ -565,27 +716,65 @@ class CustomPackage(BaseModel):
         null=True,
         blank=True
     )
+    # Store customer details for anonymous submissions
+    customer_name = models.CharField(max_length=100, blank=True)
+    customer_email = models.EmailField(blank=True)
     contact_number = models.CharField(max_length=30)
+    from_city = models.CharField(max_length=100, blank=True)
     destination = models.CharField(max_length=100)
     duration = models.CharField(max_length=50)
+    total_nights = models.PositiveIntegerField(default=1)
     start_date = models.DateField()
     participants_count = models.PositiveIntegerField()
-    hotel_preference = models.CharField(max_length=100, blank=True)
-    transportation_choice = models.CharField(max_length=50, blank=True)
+    hotel_preference = models.CharField(max_length=100, blank=True) # Luxury, Budget etc
+    room_type = models.CharField(max_length=100, blank=True) # Double, Single, etc
+    transportation_choice = models.CharField(
+        max_length=50, 
+        blank=True,
+        help_text="Car, Train, Flight, etc."
+    )
     package_type = models.CharField(max_length=50, blank=True)
     special_requirements = models.TextField(blank=True)
-    budget_range = models.CharField(max_length=50, blank=True)
+    budget_range = models.CharField(
+        max_length=20,
+        choices=BUDGET_CHOICES,
+        blank=True
+    )
+    detailed_itinerary = models.JSONField(
+        blank=True,
+        null=True,
+        help_text="Detailed customization data including destinations, activities, and preferences"
+    )
     status = models.CharField(
         max_length=15,
         choices=STATUS_CHOICES,
         default='PENDING'
     )
     admin_notes = models.TextField(blank=True)
+    admin_response = models.TextField(
+        blank=True,
+        help_text="Admin response to the custom package request"
+    )
     quoted_price = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         null=True,
         blank=True
+    )
+    customer_response = models.CharField(
+        max_length=20,
+        choices=[
+            ('PENDING', 'Pending'),
+            ('ACCEPTED', 'Accepted'),
+            ('REJECTED', 'Rejected'),
+        ],
+        default='PENDING',
+        help_text="Customer response to admin quote"
+    )
+    customer_response_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When customer responded to the quote"
     )
 
     class Meta:
@@ -595,7 +784,26 @@ class CustomPackage(BaseModel):
         verbose_name_plural = 'Custom Packages'
 
     def __str__(self):
-        return f"Custom Package #{self.id} by {self.customer.email}"
+        if self.customer:
+            return f"Custom Package #{self.id} by {self.customer.email}"
+        elif self.customer_email:
+            return f"Custom Package #{self.id} by {self.customer_email}"
+        else:
+            return f"Custom Package #{self.id} (Anonymous)"
+
+    @property
+    def customer_display_name(self):
+        """Get customer display name"""
+        if self.customer:
+            return self.customer.get_full_name() or self.customer.username
+        return self.customer_name or "Anonymous"
+
+    @property
+    def customer_display_email(self):
+        """Get customer display email"""
+        if self.customer:
+            return self.customer.email
+        return self.customer_email or "N/A"
 
 
 class Inquiry(BaseModel):
@@ -633,6 +841,13 @@ class Inquiry(BaseModel):
         default='NEW'
     )
     admin_response = models.TextField(blank=True)
+    # Field to track anonymous inquiries for abandoned cart-like flow
+    anonymous_token = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Token to identify anonymous inquiries before user login"
+    )
 
     class Meta:
         db_table = 'tours_inquiry'

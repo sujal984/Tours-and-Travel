@@ -1,49 +1,62 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import dayjs from "dayjs";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import {
   Row,
   Col,
   Card,
-  Button,
-  Tabs,
-  Divider,
-  Rate,
-  Avatar,
-  Space,
-  Empty,
   Typography,
-  message,
-  Image,
-  Tag,
-  Spin,
-  Modal,
+  Button,
+  Divider,
   Form,
+  Rate,
   Input,
+  Modal,
+  Spin,
+  Empty,
+  Avatar,
+  Tabs,
+  Space,
+  Tag,
+  Image,
+  message,
+  Alert
 } from "antd";
 import {
-  ClockCircleOutlined,
   EnvironmentOutlined,
+  ClockCircleOutlined,
+  StarOutlined,
+  TeamOutlined,
+  SafetyCertificateOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  InfoCircleOutlined,
   UserOutlined,
   DownloadOutlined,
-  StarOutlined,
-  TeamOutlined,
-  EditOutlined,
-  SafetyCertificateOutlined,
-  InfoCircleOutlined
+  ExclamationCircleOutlined
 } from "@ant-design/icons";
-import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import InquiryButton from "./InquiryButton";
-import { useAuthAction } from "../../hooks/useAuthAction";
-import { useUser } from "../../context/userContext";
+import jsPDF from "jspdf";
+import { Swiper, SwiperSlide } from "swiper/react";
+import { Autoplay, EffectFade, Navigation, Pagination } from "swiper/modules";
+import "swiper/css";
+import "swiper/css/effect-fade";
+import "swiper/css/navigation";
+import "swiper/css/pagination";
+
+import { apiClient } from "../../services/api";
+import { endpoints } from "../../constant/ENDPOINTS";
+import { useUser } from "../../context/userContext"
+
 import LoginModal from "./Auth/LoginModal";
 import RegisterModal from "./Auth/RegisterModal";
+import InquiryButton from "./InquiryButton";
 
-import { endpoints } from "../../constant/ENDPOINTS";
-import { apiClient } from "../../services/api";
-import jsPDF from "jspdf";
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
 
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
@@ -51,440 +64,170 @@ const { TextArea } = Input;
 const TourDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { requireAuth } = useAuthAction();
-  const { user } = useUser();
+  const { user, isAuthenticated } = useUser();
+
   const [tour, setTour] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isDownloading, setIsDownloading] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
-  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+
   const [loginModalVisible, setLoginModalVisible] = useState(false);
   const [registerModalVisible, setRegisterModalVisible] = useState(false);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
   const [reviewForm] = Form.useForm();
 
-  useEffect(() => {
-    const fetchTourDetails = async () => {
-      try {
-        const res = await apiClient.get(endpoints.GET_TOUR_DETAIL(id));
-        const t = res.data?.data || res.data; // Handle both response formats
+  // Check if tour has available booking dates (10-day advance rule)
+  const bookingAvailability = useMemo(() => {
+    if (!tour) return { available: false, message: "Loading..." };
 
-        console.log('Tour API Response:', t); // Debug log
+    const minBookingDate = dayjs().add(10, 'day').startOf('day');
+    const availableDates = [];
 
-        const tourObj = {
-          id: t.id,
-          title: t.name,
-          type: t.destination_names || t.primary_destination?.name || t.category || "Tour",
-          destinations: t.destinations || [],
-          primary_destination: t.primary_destination,
-          destination_names: t.destination_names,
-          price: t.current_price || t.base_price || 0,
-          base_price: t.base_price || 0,
-          seasonal_pricings: t.seasonal_pricings || [],
-          duration: `${t.duration_days || 1} Days`,
-          duration_days: t.duration_days || 1,
-          image: t.featured_image ?
-            (t.featured_image.startsWith('http') ? t.featured_image : `http://127.0.0.1:8000${t.featured_image}`) :
-            "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=400&fit=crop&q=80",
-          description: t.description || "Experience an amazing adventure with breathtaking views and unforgettable memories.",
-          rating: t.average_rating || 4.5,
-          reviews: t.review_count || 0,
-          location: t.destination_names || t.primary_destination?.name || "Unknown",
-          groupSize: `${t.max_capacity || 10} people`,
-          season: "Any Season",
-          difficulty: t.difficulty_level || "EASY",
-          category: t.category || "CULTURAL",
-          itinerary: (t.itinerary || []).map((it, index) => ({
-            day: it.day || index + 1,
-            title: it.title || `Day ${it.day || index + 1}`,
-            description: it.description || "Activities for the day"
-          })),
-          inclusions: t.inclusions || [],
-          exclusions: t.exclusions || [],
-          hotel_details: t.hotel_details || {},
-          vehicle_details: t.vehicle_details || {},
-          special_notes: t.special_notes || ""
-        };
-
-        console.log('Processed Tour Object:', tourObj); // Debug log
-        setTour(tourObj);
-        fetchTourReviews(id);
-
-      } catch (err) {
-        console.error("Failed to fetch tour detail", err);
-        message.error("Failed to load tour details");
-        
-        // Fallback data for development
-        const fallbackTour = {
-          id: id,
-          title: "Sample Tour Package",
-          price: 15000,
-          duration: "5 Days",
-          duration_days: 5,
-          image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=400&fit=crop&q=80",
-          description: "Experience an amazing adventure with breathtaking views and unforgettable memories.",
-          itinerary: [
-            { day: 1, title: "Arrival", description: "Arrive at destination and check-in" },
-            { day: 2, title: "Sightseeing", description: "Local sightseeing and activities" }
-          ],
-          inclusions: ["Accommodation", "Meals", "Transportation"],
-          exclusions: ["Personal expenses", "Tips"],
-          seasonal_pricings: [],
-          hotel_details: {},
-          vehicle_details: {},
-          special_notes: "",
-          rating: 4.5,
-          reviews: 0,
-          location: "India",
-          groupSize: "10 people",
-          difficulty: "EASY",
-          category: "CULTURAL"
-        };
-        setTour(fallbackTour);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchTourReviews = async (tourId) => {
-      try {
-        setReviewsLoading(true);
-        const res = await apiClient.get(endpoints.GET_TOUR_REVIEWS(tourId));
-        const reviewsData = res.data?.data || res.data?.results || res.data || [];
-        setReviews(Array.isArray(reviewsData) ? reviewsData : []);
-      } catch (error) {
-        console.error("Failed to fetch reviews", error);
-        setReviews([]);
-      } finally {
-        setReviewsLoading(false);
-      }
-    };
-
-    fetchTourDetails();
-  }, [id]);
-
-  const handleDownloadPDF = async () => {
-    if (!tour) return;
-    setIsDownloading(true);
-    try {
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      let yPosition = 20;
-      const margin = 15;
-      const contentWidth = pageWidth - (margin * 2);
-
-      // Helper function to add new page if needed
-      const checkPageBreak = (requiredHeight) => {
-        if (yPosition + requiredHeight > pageHeight - 25) {
-          pdf.addPage();
-          yPosition = 20;
+    // Check direct tour dates
+    if (tour?.available_dates) {
+      // Parse available_dates if it's a string (JSON format)
+      let availableDatesArray = tour.available_dates;
+      if (typeof availableDatesArray === 'string') {
+        try {
+          availableDatesArray = JSON.parse(availableDatesArray);
+        } catch (e) {
+          console.warn('Failed to parse available_dates:', availableDatesArray);
+          availableDatesArray = [];
         }
-      };
-
-      // Helper function to draw improved table
-      const drawTable = (headers, rows, startY, columnWidths = null) => {
-        let currentY = startY;
-        const defaultColWidth = contentWidth / headers.length;
-        const colWidths = columnWidths || headers.map(() => defaultColWidth);
-
-        // Draw header background
-        pdf.setFillColor(240, 240, 240);
-        pdf.rect(margin, currentY, contentWidth, 10, 'F');
-        
-        // Draw header borders
-        pdf.setDrawColor(200, 200, 200);
-        pdf.setLineWidth(0.3);
-        
-        let xPos = margin;
-        headers.forEach((header, index) => {
-          pdf.rect(xPos, currentY, colWidths[index], 10);
-          xPos += colWidths[index];
-        });
-
-        // Draw header text
-        pdf.setFontSize(9);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(60, 60, 60);
-        
-        xPos = margin;
-        headers.forEach((header, index) => {
-          const textLines = pdf.splitTextToSize(header, colWidths[index] - 4);
-          const textHeight = textLines.length * 3;
-          const textY = currentY + 5 + (textHeight / 2);
-          pdf.text(textLines, xPos + 2, textY);
-          xPos += colWidths[index];
-        });
-        
-        currentY += 10;
-
-        // Draw rows
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(8);
-        
-        rows.forEach((row, rowIndex) => {
-          const rowHeight = 12;
-          
-          // Alternate row colors
-          if (rowIndex % 2 === 0) {
-            pdf.setFillColor(250, 250, 250);
-            pdf.rect(margin, currentY, contentWidth, rowHeight, 'F');
-          }
-
-          // Draw row borders
-          xPos = margin;
-          row.forEach((cell, cellIndex) => {
-            pdf.rect(xPos, currentY, colWidths[cellIndex], rowHeight);
-            xPos += colWidths[cellIndex];
-          });
-
-          // Draw cell text
-          xPos = margin;
-          row.forEach((cell, cellIndex) => {
-            const cellText = String(cell || '');
-            const textLines = pdf.splitTextToSize(cellText, colWidths[cellIndex] - 4);
-            const textY = currentY + 4;
-            pdf.text(textLines, xPos + 2, textY);
-            xPos += colWidths[cellIndex];
-          });
-          
-          currentY += rowHeight;
-        });
-
-        return currentY + 5;
-      };
-
-      // Title Section
-      pdf.setFontSize(20);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(220, 20, 60);
-      const titleLines = pdf.splitTextToSize(tour.title || 'Tour Package', contentWidth);
-      pdf.text(titleLines, margin, yPosition);
-      yPosition += titleLines.length * 8 + 5;
-
-      // Subtitle line
-      pdf.setDrawColor(220, 20, 60);
-      pdf.setLineWidth(1);
-      pdf.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 10;
-
-      // Basic Info Section
-      pdf.setFontSize(11);
-      pdf.setTextColor(0, 0, 0);
-      pdf.setFont('helvetica', 'normal');
-      
-      const basicInfoText = `Duration: ${tour.duration} | Group Size: ${tour.groupSize} | Difficulty: ${tour.difficulty}`;
-      pdf.text(basicInfoText, margin, yPosition);
-      yPosition += 8;
-
-      const priceText = `Starting Price: ₹${tour.price?.toLocaleString()} per person`;
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(220, 20, 60);
-      pdf.text(priceText, margin, yPosition);
-      yPosition += 15;
-
-      // Description
-      pdf.setFontSize(10);
-      pdf.setTextColor(0, 0, 0);
-      pdf.setFont('helvetica', 'normal');
-      const descriptionLines = pdf.splitTextToSize(tour.description || '', contentWidth);
-      pdf.text(descriptionLines, margin, yPosition);
-      yPosition += (descriptionLines.length * 4) + 15;
-
-      // Hotel Details Section
-      if (tour.destinations && tour.destinations.length > 0) {
-        checkPageBreak(40);
-        pdf.setFontSize(14);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(220, 20, 60);
-        pdf.text('HOTEL DETAILS:', margin, yPosition);
-        yPosition += 10;
-
-        const hotelHeaders = ['DESTINATION', 'HOTELS'];
-        const hotelRows = tour.destinations.map(dest => {
-          const hotelInfo = tour.hotel_details && tour.hotel_details[dest.id];
-          return [
-            dest.name.toUpperCase(),
-            hotelInfo ? `${hotelInfo.hotel_name} (${hotelInfo.hotel_type})` : 'OMEGA/SIMILAR'
-          ];
-        });
-
-        const hotelColWidths = [contentWidth * 0.4, contentWidth * 0.6];
-        yPosition = drawTable(hotelHeaders, hotelRows, yPosition, hotelColWidths);
       }
-
-      // Seasonal Pricing Section
-      if (tour.seasonal_pricings && tour.seasonal_pricings.length > 0) {
-        tour.seasonal_pricings.forEach((pricing, index) => {
-          checkPageBreak(80);
-          
-          // Season header
-          pdf.setFontSize(12);
-          pdf.setFont('helvetica', 'bold');
-          pdf.setTextColor(220, 20, 60);
-          const seasonText = `▶ RATE APPLICABLE FROM - ${pricing.season?.date_range_display?.toUpperCase() || 'SEASON'}`;
-          const seasonLines = pdf.splitTextToSize(seasonText, contentWidth);
-          pdf.text(seasonLines, margin, yPosition);
-          yPosition += seasonLines.length * 5 + 5;
-
-          // Available dates table
-          if (pricing.available_dates && pricing.available_dates.length > 0) {
-            const dateHeaders = ['MONTH', pricing.season?.name?.toUpperCase() || 'SEASON'];
-            const dateRows = [['DATE', pricing.available_dates.join(', ')]];
-            const dateColWidths = [contentWidth * 0.3, contentWidth * 0.7];
-            yPosition = drawTable(dateHeaders, dateRows, yPosition, dateColWidths);
+      
+      if (Array.isArray(availableDatesArray)) {
+        availableDatesArray.forEach(d => {
+          const date = dayjs(d);
+          if (date.isSameOrAfter(minBookingDate)) {
+            availableDates.push(date.format("YYYY-MM-DD"));
           }
+        });
+      }
+    }
 
-          // Vehicle information
-          if (tour.vehicle_details && Object.keys(tour.vehicle_details).length > 0) {
-            pdf.setFontSize(10);
-            pdf.setFont('helvetica', 'bold');
-            pdf.setTextColor(220, 20, 60);
-            const vehicleText = `▶ VEHICLE: ${tour.vehicle_details.type}`;
-            const vehicleLines = pdf.splitTextToSize(vehicleText, contentWidth);
-            pdf.text(vehicleLines, margin, yPosition);
-            yPosition += vehicleLines.length * 4 + 2;
+    // Check seasonal pricing dates
+    if (tour.seasonal_pricings && tour.seasonal_pricings.length > 0) {
+      tour.seasonal_pricings.forEach(pricing => {
+        const season = pricing.season_details || pricing.season;
+        if (!pricing.available_dates || !Array.isArray(pricing.available_dates)) return;
+
+        pricing.available_dates.forEach(dateStr => {
+          // Handle both full date strings (YYYY-MM-DD) and day numbers
+          let dateToCheck;
+          if (dateStr.includes('-')) {
+            // Full date string like "2026-01-29"
+            dateToCheck = dayjs(dateStr);
+          } else {
+            // Day number like "29" - need season dates to construct full date
+            if (!season || !season.start_date || !season.end_date) return;
             
-            if (tour.vehicle_details.note) {
-              pdf.setFontSize(9);
-              pdf.setFont('helvetica', 'normal');
-              const noteText = `(${tour.vehicle_details.note})`;
-              const noteLines = pdf.splitTextToSize(noteText, contentWidth - 20);
-              pdf.text(noteLines, margin + 10, yPosition);
-              yPosition += noteLines.length * 4 + 5;
+            const startDate = dayjs(season.start_date);
+            const endDate = dayjs(season.end_date);
+            const dayNum = parseInt(dateStr);
+            
+            let current = startDate;
+            while (current.isSameOrBefore(endDate)) {
+              if (current.date() === dayNum) {
+                dateToCheck = current;
+                break;
+              }
+              current = current.add(1, 'day');
             }
           }
-
-          // Pricing table
-          const pricingHeaders = [
-            '02 SHARING\n(PER PERSON)',
-            '03 SHARING\n(PER PERSON)', 
-            'CHILD WITHOUT BED\n(4 YR - 11 YR)'
-          ];
           
-          const pricingRows = [[
-            `INR ${pricing.two_sharing_price?.toLocaleString()}/-${pricing.includes_return_air ? '\nWITH RETURN AIR' : ''}`,
-            `INR ${pricing.three_sharing_price?.toLocaleString()}/-${pricing.includes_return_air ? '\nWITH RETURN AIR' : ''}`,
-            `INR ${pricing.child_price?.toLocaleString()}/-${pricing.includes_return_air ? '\nWITH RETURN AIR' : ''}`
-          ]];
-
-          const pricingColWidths = [contentWidth / 3, contentWidth / 3, contentWidth / 3];
-          yPosition = drawTable(pricingHeaders, pricingRows, yPosition, pricingColWidths);
-          yPosition += 10;
+          if (dateToCheck && dateToCheck.isValid() && dateToCheck.isSameOrAfter(minBookingDate)) {
+            availableDates.push(dateToCheck.format("YYYY-MM-DD"));
+          }
         });
-      }
+      });
+    }
 
-      // Itinerary Section
-      if (tour.itinerary && tour.itinerary.length > 0) {
-        checkPageBreak(40);
-        pdf.setFontSize(14);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(0, 102, 204);
-        pdf.text('DETAILED ITINERARY:', margin, yPosition);
-        yPosition += 12;
+    // Also check pricing_details (legacy/alternative structure)
+    if (tour.pricing_details && Array.isArray(tour.pricing_details)) {
+      tour.pricing_details.forEach((pricing, index) => {
+        if (!pricing.available_dates || !Array.isArray(pricing.available_dates)) return;
 
-        tour.itinerary.forEach((day, index) => {
-          checkPageBreak(25);
+        pricing.available_dates.forEach(dateStr => {
+          // Handle both full date strings (YYYY-MM-DD) and day numbers
+          let dateToCheck;
+          if (dateStr.includes('-')) {
+            // Full date string like "2026-02-08"
+            dateToCheck = dayjs(dateStr);
+          } else {
+            // Day number - need season context
+            const season = pricing.season;
+            if (!season || !season.start_date || !season.end_date) return;
+            
+            const startDate = dayjs(season.start_date);
+            const endDate = dayjs(season.end_date);
+            const dayNum = parseInt(dateStr);
+            
+            let current = startDate;
+            while (current.isSameOrBefore(endDate)) {
+              if (current.date() === dayNum) {
+                dateToCheck = current;
+                break;
+              }
+              current = current.add(1, 'day');
+            }
+          }
           
-          // Day header
-          pdf.setFontSize(11);
-          pdf.setFont('helvetica', 'bold');
-          pdf.setTextColor(220, 20, 60);
-          const dayTitle = `Day ${day.day}: ${day.title}`;
-          pdf.text(dayTitle, margin, yPosition);
-          yPosition += 8;
-
-          // Day description
-          pdf.setFontSize(9);
-          pdf.setFont('helvetica', 'normal');
-          pdf.setTextColor(0, 0, 0);
-          const dayDescLines = pdf.splitTextToSize(day.description, contentWidth - 10);
-          pdf.text(dayDescLines, margin + 5, yPosition);
-          yPosition += (dayDescLines.length * 4) + 10;
+          if (dateToCheck && dateToCheck.isValid() && dateToCheck.isSameOrAfter(minBookingDate)) {
+            availableDates.push(dateToCheck.format("YYYY-MM-DD"));
+          }
         });
-      }
+      });
+    }
 
-      // Inclusions Section
-      if (tour.inclusions && tour.inclusions.length > 0) {
-        checkPageBreak(40);
-        pdf.setFontSize(12);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(0, 150, 0);
-        pdf.text('INCLUSIONS:', margin, yPosition);
-        yPosition += 10;
+    const uniqueDates = [...new Set(availableDates)].sort();
+    
+    if (uniqueDates.length === 0) {
+      return {
+        available: false,
+        message: "No available dates for booking. Tours must be booked at least 10 days in advance.",
+        nextAvailableDate: null
+      };
+    }
 
-        pdf.setFontSize(9);
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(0, 0, 0);
-        tour.inclusions.forEach(inclusion => {
-          checkPageBreak(6);
-          const inclusionLines = pdf.splitTextToSize(`✓ ${inclusion}`, contentWidth - 10);
-          pdf.text(inclusionLines, margin + 5, yPosition);
-          yPosition += inclusionLines.length * 4 + 2;
-        });
-        yPosition += 8;
-      }
+    return {
+      available: true,
+      message: `${uniqueDates.length} dates available for booking`,
+      nextAvailableDate: uniqueDates[0]
+    };
+  }, [tour]);
 
-      // Exclusions Section
-      if (tour.exclusions && tour.exclusions.length > 0) {
-        checkPageBreak(40);
-        pdf.setFontSize(12);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(220, 20, 60);
-        pdf.text('EXCLUSIONS:', margin, yPosition);
-        yPosition += 10;
+  useEffect(() => {
+    fetchTourDetails();
+    fetchReviews();
+  }, [id]);
 
-        pdf.setFontSize(9);
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(0, 0, 0);
-        tour.exclusions.forEach(exclusion => {
-          checkPageBreak(6);
-          const exclusionLines = pdf.splitTextToSize(`✗ ${exclusion}`, contentWidth - 10);
-          pdf.text(exclusionLines, margin + 5, yPosition);
-          yPosition += exclusionLines.length * 4 + 2;
-        });
-        yPosition += 8;
-      }
-
-      // Special Notes Section
-      if (tour.special_notes) {
-        checkPageBreak(30);
-        pdf.setFontSize(12);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(220, 20, 60);
-        pdf.text('SPECIAL NOTES:', margin, yPosition);
-        yPosition += 10;
-
-        pdf.setFontSize(9);
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(0, 0, 0);
-        const notesLines = pdf.splitTextToSize(tour.special_notes, contentWidth);
-        pdf.text(notesLines, margin, yPosition);
-        yPosition += (notesLines.length * 4) + 15;
-      }
-
-      // Footer on each page
-      const totalPages = pdf.internal.getNumberOfPages();
-      for (let i = 1; i <= totalPages; i++) {
-        pdf.setPage(i);
-        const footerY = pageHeight - 10;
-        pdf.setFontSize(8);
-        pdf.setTextColor(128, 128, 128);
-        pdf.text('Generated by Rima Tours & Travels', margin, footerY);
-        pdf.text(`Page ${i} of ${totalPages}`, pageWidth - margin - 20, footerY);
-        pdf.text(`Generated on: ${new Date().toLocaleDateString()}`, pageWidth / 2 - 20, footerY);
-      }
-
-      // Save the PDF
-      const fileName = `${tour.title?.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_') || 'Tour'}_Brochure.pdf`;
-      pdf.save(fileName);
-      message.success("Professional brochure downloaded successfully!");
-      
-    } catch (err) {
-      console.error('PDF generation error:', err);
-      message.error("Failed to generate brochure. Please try again.");
+  const fetchTourDetails = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get(endpoints.GET_TOUR_DETAIL(id));
+      setTour(response.data?.data || response.data);
+    } catch (error) {
+      console.error("Error fetching tour:", error);
+      message.error("Failed to load tour details");
     } finally {
-      setIsDownloading(false);
+      setLoading(false);
+    }
+  };
+
+  const fetchReviews = async () => {
+    try {
+      setReviewsLoading(true);
+      // Add cache-busting parameter to ensure fresh data
+      const cacheBuster = Date.now();
+      const response = await apiClient.get(`${endpoints.GET_TOUR_REVIEWS(id)}?_t=${cacheBuster}`);
+      setReviews(response.data?.data || response.data?.results || []);
+    } catch (error) {
+      console.error("Error fetching reviews:", error);
+    } finally {
+      setReviewsLoading(false);
     }
   };
 
@@ -495,47 +238,297 @@ const TourDetail = () => {
         rating: values.rating,
         comment: values.comment
       });
-      message.success("Review submitted! Pending verification.");
+      message.success("Review submitted successfully");
       setReviewModalVisible(false);
       reviewForm.resetFields();
+      fetchReviews();
     } catch (error) {
-      message.error("Failed to submit review.");
+      console.error("Error submitting review:", error);
+      message.error("Failed to submit review");
     }
   };
 
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <Spin size="large" />
-      </div>
-    );
-  }
+  const handleDownloadPDF = () => {
+    setIsDownloading(true);
+    
+    try {
+      const doc = new jsPDF();
+      let yPosition = 20;
+      const pageHeight = doc.internal.pageSize.height;
+      const margin = 20;
+      
+      // Helper function to add new page if needed
+      const checkPageBreak = (requiredSpace = 20) => {
+        if (yPosition + requiredSpace > pageHeight - margin) {
+          doc.addPage();
+          yPosition = 20;
+        }
+      };
+      
+      // Header
+      doc.setFontSize(22);
+      doc.setTextColor(220, 20, 60);
+      doc.text(tour.name.toUpperCase(), margin, yPosition);
+      yPosition += 15;
+      
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Duration: ${tour.duration_days} Days | Destination: ${tour.primary_destination?.name || tour.destination_names}`, margin, yPosition);
+      yPosition += 10;
+      doc.text(`Category: ${tour.category || 'General'} | Difficulty: ${tour.difficulty_level || 'Moderate'}`, margin, yPosition);
+      yPosition += 20;
+      
+      // Description
+      checkPageBreak(30);
+      doc.setFontSize(14);
+      doc.setTextColor(220, 20, 60);
+      doc.text('TOUR DESCRIPTION', margin, yPosition);
+      yPosition += 10;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+      const descriptionLines = doc.splitTextToSize(tour.description || 'Tour description not available', 170);
+      doc.text(descriptionLines, margin, yPosition);
+      yPosition += descriptionLines.length * 5 + 15;
+      
+      // Hotel Details
+      if (tour.destinations && tour.destinations.length > 0) {
+        checkPageBreak(40);
+        doc.setFontSize(14);
+        doc.setTextColor(220, 20, 60);
+        doc.text('HOTEL DETAILS', margin, yPosition);
+        yPosition += 10;
+        
+        tour.destinations.forEach((destination) => {
+          checkPageBreak(15);
+          const hotelInfo = tour.hotel_details && tour.hotel_details[destination.id];
+          const actualHotel = destination.hotels && destination.hotels.length > 0 ? destination.hotels[0] : null;
+          
+          doc.setFontSize(11);
+          doc.setTextColor(0, 0, 0);
+          const hotelText = actualHotel 
+            ? `${destination.name.toUpperCase()}: ${actualHotel.name.toUpperCase()} (${actualHotel.hotel_type || hotelInfo?.hotel_type || 'Standard'})` 
+            : `${destination.name.toUpperCase()}: ${hotelInfo?.hotel_name || 'OMEGA/SIMILAR'} (${hotelInfo?.hotel_type || 'Standard'})`;
+          doc.text(hotelText, margin, yPosition);
+          yPosition += 8;
+        });
+        yPosition += 10;
+      }
+      
+      // Seasonal Pricing
+      if (tour.seasonal_pricings && tour.seasonal_pricings.length > 0) {
+        checkPageBreak(60);
+        doc.setFontSize(14);
+        doc.setTextColor(220, 20, 60);
+        doc.text('SEASONAL PRICING', margin, yPosition);
+        yPosition += 15;
+        
+        tour.seasonal_pricings.forEach((pricing, index) => {
+          checkPageBreak(50);
+          
+          // Season header
+          doc.setFontSize(12);
+          doc.setTextColor(220, 20, 60);
+          const seasonName = pricing.season?.name || `Season ${index + 1}`;
+          const dateRange = pricing.season?.date_range_display || 'Date range not specified';
+          doc.text(`${seasonName.toUpperCase()} - ${dateRange.toUpperCase()}`, margin, yPosition);
+          yPosition += 10;
+          
+          // Available dates
+          if (pricing.available_dates && pricing.available_dates.length > 0) {
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Available Dates: ${pricing.available_dates.join(', ')}`, margin, yPosition);
+            yPosition += 8;
+          }
+          
+          // Pricing table
+          doc.setFontSize(10);
+          doc.text('2-Sharing (Per Person):', margin, yPosition);
+          doc.text(`INR ${pricing.two_sharing_price?.toLocaleString() || 'N/A'}/-`, margin + 60, yPosition);
+          yPosition += 6;
+          
+          doc.text('3-Sharing (Per Person):', margin, yPosition);
+          doc.text(`INR ${pricing.three_sharing_price?.toLocaleString() || 'N/A'}/-`, margin + 60, yPosition);
+          yPosition += 6;
+          
+          doc.text('Child (4-11 Yr):', margin, yPosition);
+          doc.text(`INR ${pricing.child_price?.toLocaleString() || 'N/A'}/-`, margin + 60, yPosition);
+          yPosition += 10;
+          
+          if (pricing.includes_return_air) {
+            doc.setTextColor(0, 150, 0);
+            doc.text('✓ Includes Return Air Travel', margin, yPosition);
+            doc.setTextColor(0, 0, 0);
+            yPosition += 8;
+          }
+          yPosition += 5;
+        });
+      }
+      
+      // Vehicle Details
+      if (tour.vehicle_details && Object.keys(tour.vehicle_details).length > 0) {
+        checkPageBreak(25);
+        doc.setFontSize(14);
+        doc.setTextColor(220, 20, 60);
+        doc.text('VEHICLE DETAILS', margin, yPosition);
+        yPosition += 10;
+        
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Vehicle Type: ${tour.vehicle_details.type}`, margin, yPosition);
+        yPosition += 8;
+        
+        if (tour.vehicle_details.note) {
+          const noteLines = doc.splitTextToSize(`Note: ${tour.vehicle_details.note}`, 170);
+          doc.text(noteLines, margin, yPosition);
+          yPosition += noteLines.length * 5 + 10;
+        }
+      }
+      
+      // Inclusions
+      if (tour.inclusions && tour.inclusions.length > 0) {
+        checkPageBreak(30);
+        doc.setFontSize(14);
+        doc.setTextColor(0, 150, 0);
+        doc.text('INCLUSIONS', margin, yPosition);
+        yPosition += 10;
+        
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+        tour.inclusions.forEach((inclusion) => {
+          checkPageBreak(8);
+          doc.text(`✓ ${inclusion}`, margin, yPosition);
+          yPosition += 6;
+        });
+        yPosition += 10;
+      }
+      
+      // Exclusions
+      if (tour.exclusions && tour.exclusions.length > 0) {
+        checkPageBreak(30);
+        doc.setFontSize(14);
+        doc.setTextColor(220, 20, 60);
+        doc.text('EXCLUSIONS', margin, yPosition);
+        yPosition += 10;
+        
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+        tour.exclusions.forEach((exclusion) => {
+          checkPageBreak(8);
+          doc.text(`✗ ${exclusion}`, margin, yPosition);
+          yPosition += 6;
+        });
+        yPosition += 10;
+      }
+      
+      // Special Notes
+      if (tour.special_notes) {
+        checkPageBreak(30);
+        doc.setFontSize(14);
+        doc.setTextColor(220, 20, 60);
+        doc.text('SPECIAL NOTES', margin, yPosition);
+        yPosition += 10;
+        
+        doc.setFontSize(10);
+        doc.setTextColor(0, 0, 0);
+        const notesLines = doc.splitTextToSize(tour.special_notes, 170);
+        doc.text(notesLines, margin, yPosition);
+        yPosition += notesLines.length * 5 + 15;
+      }
+      
+      // Footer
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128);
+        doc.text(`Page ${i} of ${totalPages}`, margin, pageHeight - 10);
+        doc.text('Generated by Rima Tours & Travels', doc.internal.pageSize.width - margin - 60, pageHeight - 10);
+      }
+      
+      doc.save(`${tour.name.replace(/\s+/g, '_')}_Brochure.pdf`);
+      message.success('Brochure downloaded successfully!');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      message.error('Failed to generate brochure. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
-  if (!tour) {
-    return (
-      <div style={{ minHeight: "60vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
-        <Empty description="Tour not found" />
-      </div>
-    );
-  }
+  if (loading) return <div style={{ height: '80vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}><Spin size="large" /></div>;
+  if (!tour) return <div style={{ textAlign: 'center', padding: '100px' }}><Empty description="Tour not found" /><Button onClick={() => navigate('/tours')}>Browse Tours</Button></div>;
 
+  // Helper to get all images
+  const getHeroImages = () => {
+    if (!tour) return [];
+    let images = [];
+
+    // Add featured/main image
+    if (tour.featured_image) {
+      const imageUrl = tour.featured_image.startsWith('http') 
+        ? tour.featured_image 
+        : `http://127.0.0.1:8000${tour.featured_image}`;
+      images.push({ src: imageUrl, alt: tour.name });
+    }
+
+    // Add destination images
+    if (tour.destinations) {
+      tour.destinations.forEach(dest => {
+        if (dest.images && dest.images.length > 0) {
+          dest.images.forEach(img => {
+            const imageUrl = img.image.startsWith('http') 
+              ? img.image 
+              : `http://127.0.0.1:8000${img.image}`;
+            images.push({
+              src: imageUrl,
+              alt: img.caption || dest.name
+            });
+          });
+        }
+      });
+    }
+
+    // Fallback
+    if (images.length === 0) {
+      images.push({
+        src: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=400&fit=crop&q=80",
+        alt: "Tour"
+      });
+    }
+    return images;
+  };
+
+  // ...
+
+  // Render Hero
   return (
     <div className="tour-detail-page" style={{ background: 'var(--bg-secondary)', paddingBottom: 'var(--spacing-4xl)' }}>
       {/* Hero Section */}
       <div style={{ position: 'relative', height: '60vh', overflow: 'hidden' }}>
-        <motion.div
-          initial={{ scale: 1.1 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.8 }}
-          style={{ height: '100%', width: '100%' }}
+        <Swiper
+          modules={[Autoplay, EffectFade, Navigation, Pagination]}
+          effect="fade"
+          autoplay={{ delay: 5000, disableOnInteraction: false }}
+          loop={true}
+          pagination={{ clickable: true }}
+          style={{ width: '100%', height: '100%' }}
         >
-          <Image
-            src={tour.image}
-            alt={tour.title}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            preview={false}
-          />
-        </motion.div>
+          {getHeroImages().map((img, idx) => (
+            <SwiperSlide key={idx}>
+              <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                <Image
+                  src={img.src}
+                  alt={img.alt}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  preview={false}
+                />
+                {/* Overlay for text readability handled by parent absolute div below */}
+              </div>
+            </SwiperSlide>
+          ))}
+        </Swiper>
 
         <div style={{
           position: 'absolute',
@@ -555,12 +548,12 @@ const TourDetail = () => {
                 {tour.category || "General"}
               </Tag>
               <h1 style={{ color: 'white', fontSize: '3.5rem', marginBottom: '10px', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
-                {tour.title}
+                {tour.name}
               </h1>
               <Space size="large" style={{ color: 'white', fontSize: '1.1rem' }}>
-                <span><EnvironmentOutlined /> {tour.location}</span>
-                <span><ClockCircleOutlined /> {tour.duration}</span>
-                <span><StarOutlined style={{ color: '#ffd700' }} /> {tour.rating}/5</span>
+                <span><EnvironmentOutlined /> {tour.primary_destination?.name || tour.destination_names}</span>
+                <span><ClockCircleOutlined /> {tour.duration_days} Days</span>
+                <span><StarOutlined style={{ color: '#ffd700' }} /> {tour.average_rating || 0}/5</span>
               </Space>
             </motion.div>
           </div>
@@ -583,10 +576,10 @@ const TourDetail = () => {
                 marginBottom: '40px'
               }}>
                 {[
-                  { icon: <ClockCircleOutlined />, label: "Duration", value: tour.duration, color: "#3498db" },
-                  { icon: <TeamOutlined />, label: "Group Size", value: tour.groupSize, color: "#2ecc71" },
-                  { icon: <SafetyCertificateOutlined />, label: "Difficulty", value: tour.difficulty, color: "#e67e22" },
-                  { icon: <StarOutlined />, label: "Rating", value: `${tour.rating}/5`, color: "#f1c40f" },
+                  { icon: <ClockCircleOutlined />, label: "Duration", value: `${tour.duration_days} Days`, color: "#3498db" },
+                  { icon: <TeamOutlined />, label: "Group Size", value: tour.max_capacity, color: "#2ecc71" },
+                  { icon: <SafetyCertificateOutlined />, label: "Difficulty", value: tour.difficulty_level, color: "#e67e22" },
+                  { icon: <StarOutlined />, label: "Rating", value: `${tour.average_rating || 0}/5`, color: "#f1c40f" },
                 ].map((stat, idx) => (
                   <Card key={idx} className="card" bodyStyle={{ padding: '20px', textAlign: 'center' }}>
                     <div style={{ fontSize: '2rem', color: stat.color, marginBottom: '10px' }}>{stat.icon}</div>
@@ -679,18 +672,18 @@ const TourDetail = () => {
                           {tour.destinations && tour.destinations.length > 0 && (
                             <div style={{ marginBottom: '30px' }}>
                               <h3 style={{ color: 'var(--primary-color)', marginBottom: '15px' }}>Hotel Details</h3>
-                              <div style={{ 
-                                display: 'grid', 
-                                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                              <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
                                 gap: '15px',
                                 marginBottom: '20px'
                               }}>
                                 {tour.destinations.map((destination, index) => {
                                   const hotelInfo = tour.hotel_details && tour.hotel_details[destination.id];
                                   return (
-                                    <div key={index} style={{ 
-                                      padding: '15px', 
-                                      border: '1px solid var(--border-color)', 
+                                    <div key={index} style={{
+                                      padding: '15px',
+                                      border: '1px solid var(--border-color)',
                                       borderRadius: 'var(--radius-md)',
                                       textAlign: 'center'
                                     }}>
@@ -716,32 +709,32 @@ const TourDetail = () => {
                               <h3 style={{ color: 'var(--primary-color)', marginBottom: '15px' }}>Seasonal Pricing</h3>
                               {tour.seasonal_pricings.map((pricing, index) => (
                                 <div key={index} style={{ marginBottom: '25px' }}>
-                                  <h4 style={{ 
-                                    color: 'var(--error-color)', 
+                                  <h4 style={{
+                                    color: 'var(--error-color)',
                                     marginBottom: '10px',
                                     fontSize: '1rem'
                                   }}>
                                     ▶ RATE APPLICABLE FROM - {pricing.season?.date_range_display?.toUpperCase()}
                                   </h4>
-                                  
+
                                   {pricing.available_dates && pricing.available_dates.length > 0 && (
                                     <div style={{ marginBottom: '15px' }}>
-                                      <table style={{ 
-                                        width: '100%', 
+                                      <table style={{
+                                        width: '100%',
                                         border: '1px solid var(--border-color)',
                                         borderCollapse: 'collapse'
                                       }}>
                                         <thead>
                                           <tr style={{ background: 'var(--bg-secondary)' }}>
-                                            <th style={{ 
-                                              border: '1px solid var(--border-color)', 
+                                            <th style={{
+                                              border: '1px solid var(--border-color)',
                                               padding: '8px',
                                               textAlign: 'center'
                                             }}>
                                               MONTH
                                             </th>
-                                            <th style={{ 
-                                              border: '1px solid var(--border-color)', 
+                                            <th style={{
+                                              border: '1px solid var(--border-color)',
                                               padding: '8px',
                                               textAlign: 'center'
                                             }}>
@@ -751,16 +744,32 @@ const TourDetail = () => {
                                         </thead>
                                         <tbody>
                                           <tr>
-                                            <td style={{ 
-                                              border: '1px solid var(--border-color)', 
+                                            <td style={{
+                                              border: '1px solid var(--border-color)',
                                               padding: '8px',
                                               textAlign: 'center',
                                               fontWeight: 'bold'
                                             }}>
-                                              DATE
+                                              {pricing.season?.start_date && pricing.season?.end_date ? 
+                                                (() => {
+                                                  const startMonth = new Date(pricing.season.start_date).toLocaleDateString('en-US', { month: 'short' });
+                                                  const endMonth = new Date(pricing.season.end_date).toLocaleDateString('en-US', { month: 'short' });
+                                                  const startYear = new Date(pricing.season.start_date).getFullYear();
+                                                  const endYear = new Date(pricing.season.end_date).getFullYear();
+                                                  
+                                                  if (startMonth === endMonth && startYear === endYear) {
+                                                    return `${startMonth} ${startYear}`;
+                                                  } else if (startYear === endYear) {
+                                                    return `${startMonth} - ${endMonth} ${startYear}`;
+                                                  } else {
+                                                    return `${startMonth} ${startYear} - ${endMonth} ${endYear}`;
+                                                  }
+                                                })()
+                                                : 'All Year'
+                                              }
                                             </td>
-                                            <td style={{ 
-                                              border: '1px solid var(--border-color)', 
+                                            <td style={{
+                                              border: '1px solid var(--border-color)',
                                               padding: '8px',
                                               textAlign: 'center'
                                             }}>
@@ -779,8 +788,8 @@ const TourDetail = () => {
                                         ▶ VEHICLE: {tour.vehicle_details.type}
                                       </h4>
                                       {tour.vehicle_details.note && (
-                                        <p style={{ 
-                                          color: 'var(--error-color)', 
+                                        <p style={{
+                                          color: 'var(--error-color)',
                                           fontSize: '0.85rem',
                                           marginLeft: '15px'
                                         }}>
@@ -791,67 +800,67 @@ const TourDetail = () => {
                                   )}
 
                                   {/* Pricing Table */}
-                                  <table style={{ 
-                                    width: '100%', 
+                                  <table style={{
+                                    width: '100%',
                                     border: '1px solid var(--border-color)',
                                     borderCollapse: 'collapse',
                                     marginBottom: '15px'
                                   }}>
                                     <thead>
                                       <tr style={{ background: 'var(--bg-secondary)' }}>
-                                        <th style={{ 
-                                          border: '1px solid var(--border-color)', 
+                                        <th style={{
+                                          border: '1px solid var(--border-color)',
                                           padding: '10px',
                                           textAlign: 'center'
                                         }}>
-                                          02 SHARING<br/>(PER PERSON)
+                                          02 SHARING<br />(PER PERSON)
                                         </th>
-                                        <th style={{ 
-                                          border: '1px solid var(--border-color)', 
+                                        <th style={{
+                                          border: '1px solid var(--border-color)',
                                           padding: '10px',
                                           textAlign: 'center'
                                         }}>
-                                          03 SHARING<br/>(PER PERSON)
+                                          03 SHARING<br />(PER PERSON)
                                         </th>
-                                        <th style={{ 
-                                          border: '1px solid var(--border-color)', 
+                                        <th style={{
+                                          border: '1px solid var(--border-color)',
                                           padding: '10px',
                                           textAlign: 'center'
                                         }}>
-                                          CHILD WITHOUT BED<br/>(4 YR - 11 YR)
+                                          CHILD WITHOUT BED<br />(4 YR - 11 YR)
                                         </th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       <tr>
-                                        <td style={{ 
-                                          border: '1px solid var(--border-color)', 
+                                        <td style={{
+                                          border: '1px solid var(--border-color)',
                                           padding: '15px',
                                           textAlign: 'center',
                                           fontWeight: 'bold'
                                         }}>
                                           INR {pricing.two_sharing_price?.toLocaleString()}/-
-                                          {pricing.includes_return_air && <br/>}
+                                          {pricing.includes_return_air && <br />}
                                           {pricing.includes_return_air && <span style={{ fontSize: '0.8rem' }}>WITH RETURN AIR</span>}
                                         </td>
-                                        <td style={{ 
-                                          border: '1px solid var(--border-color)', 
+                                        <td style={{
+                                          border: '1px solid var(--border-color)',
                                           padding: '15px',
                                           textAlign: 'center',
                                           fontWeight: 'bold'
                                         }}>
                                           INR {pricing.three_sharing_price?.toLocaleString()}/-
-                                          {pricing.includes_return_air && <br/>}
+                                          {pricing.includes_return_air && <br />}
                                           {pricing.includes_return_air && <span style={{ fontSize: '0.8rem' }}>WITH RETURN AIR</span>}
                                         </td>
-                                        <td style={{ 
-                                          border: '1px solid var(--border-color)', 
+                                        <td style={{
+                                          border: '1px solid var(--border-color)',
                                           padding: '15px',
                                           textAlign: 'center',
                                           fontWeight: 'bold'
                                         }}>
                                           INR {pricing.child_price?.toLocaleString()}/-
-                                          {pricing.includes_return_air && <br/>}
+                                          {pricing.includes_return_air && <br />}
                                           {pricing.includes_return_air && <span style={{ fontSize: '0.8rem' }}>WITH RETURN AIR</span>}
                                         </td>
                                       </tr>
@@ -866,14 +875,160 @@ const TourDetail = () => {
                           {tour.special_notes && (
                             <div style={{ marginTop: '20px' }}>
                               <h3 style={{ color: 'var(--primary-color)', marginBottom: '10px' }}>Special Notes</h3>
-                              <div style={{ 
-                                padding: '15px', 
-                                background: 'var(--bg-secondary)', 
+                              <div style={{
+                                padding: '15px',
+                                background: 'var(--bg-secondary)',
                                 borderRadius: 'var(--radius-md)',
                                 border: '1px solid var(--border-color)'
                               }}>
                                 <p style={{ margin: 0, lineHeight: '1.6' }}>{tour.special_notes}</p>
                               </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    },
+                    {
+                      key: 'hotels',
+                      label: <span style={{ fontSize: '1.1rem' }}><EnvironmentOutlined /> Hotels</span>,
+                      children: (
+                        <div style={{ padding: '20px 0' }}>
+                          <h3 style={{ color: 'var(--primary-color)', marginBottom: '20px' }}>
+                            Accommodation Details
+                          </h3>
+                          
+                          {tour.destinations && tour.destinations.length > 0 ? (
+                            <Row gutter={[24, 24]}>
+                              {tour.destinations.map((destination) => {
+                                // Get hotels for this destination
+                                const destinationHotels = destination.hotels || [];
+                                
+                                return (
+                                  <Col xs={24} key={destination.id}>
+                                    <div style={{ marginBottom: '30px' }}>
+                                      <h4 style={{ 
+                                        color: 'var(--primary-color)', 
+                                        marginBottom: '15px',
+                                        fontSize: '1.2rem',
+                                        borderBottom: '2px solid var(--primary-light)',
+                                        paddingBottom: '8px'
+                                      }}>
+                                        {destination.name} ({destinationHotels.length} hotels)
+                                      </h4>
+                                      
+                                      {destinationHotels.length > 0 ? (
+                                        <Row gutter={[16, 16]}>
+                                          {destinationHotels.map((hotel) => (
+                                          <Col xs={24} sm={12} lg={8} key={hotel.id}>
+                                            <Card
+                                              hoverable
+                                              cover={
+                                                hotel.image ? (
+                                                  <div style={{ height: '200px', overflow: 'hidden' }}>
+                                                    <img
+                                                      alt={hotel.name}
+                                                      src={hotel.image.startsWith('http') 
+                                                        ? hotel.image 
+                                                        : `http://127.0.0.1:8000${hotel.image}`}
+                                                      style={{ 
+                                                        width: '100%', 
+                                                        height: '100%', 
+                                                        objectFit: 'cover' 
+                                                      }}
+                                                    />
+                                                  </div>
+                                                ) : (
+                                                  <div style={{ 
+                                                    height: '200px', 
+                                                    background: 'var(--bg-secondary)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    color: 'var(--text-tertiary)'
+                                                  }}>
+                                                    <EnvironmentOutlined style={{ fontSize: '2rem' }} />
+                                                  </div>
+                                                )
+                                              }
+                                              bodyStyle={{ padding: '16px' }}
+                                            >
+                                              <div style={{ textAlign: 'center' }}>
+                                                <h4 style={{ 
+                                                  margin: '0 0 8px 0',
+                                                  fontSize: '1.1rem',
+                                                  color: 'var(--text-primary)'
+                                                }}>
+                                                  {hotel.name}
+                                                </h4>
+                                                
+                                                {hotel.star_rating && (
+                                                  <div style={{ marginBottom: '8px' }}>
+                                                    <Rate 
+                                                      disabled 
+                                                      value={hotel.star_rating} 
+                                                      style={{ fontSize: '0.9rem' }}
+                                                    />
+                                                  </div>
+                                                )}
+                                                
+                                                {hotel.hotel_type && (
+                                                  <Tag color="blue" style={{ marginBottom: '8px' }}>
+                                                    {hotel.hotel_type}
+                                                  </Tag>
+                                                )}
+                                                
+                                                {hotel.address && (
+                                                  <p style={{ 
+                                                    color: 'var(--text-secondary)', 
+                                                    fontSize: '0.9rem',
+                                                    margin: '8px 0 0 0',
+                                                    lineHeight: '1.4'
+                                                  }}>
+                                                    <EnvironmentOutlined style={{ marginRight: '4px' }} />
+                                                    {hotel.address}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            </Card>
+                                          </Col>
+                                        ))}
+                                        </Row>
+                                      ) : (
+                                        <div style={{ 
+                                          textAlign: 'center', 
+                                          padding: '20px',
+                                          background: 'var(--bg-secondary)',
+                                          borderRadius: 'var(--radius-md)',
+                                          border: '1px dashed var(--border-color)'
+                                        }}>
+                                          <EnvironmentOutlined style={{ 
+                                            fontSize: '2rem', 
+                                            color: 'var(--text-tertiary)',
+                                            marginBottom: '8px'
+                                          }} />
+                                          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+                                            No hotels available for {destination.name}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </Col>
+                                );
+                              })}
+                            </Row>
+                          ) : (
+                            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                              <EnvironmentOutlined style={{ 
+                                fontSize: '3rem', 
+                                color: 'var(--text-tertiary)',
+                                marginBottom: '16px'
+                              }} />
+                              <h4 style={{ color: 'var(--text-secondary)' }}>
+                                Hotel details will be provided upon booking confirmation
+                              </h4>
+                              <p style={{ color: 'var(--text-tertiary)' }}>
+                                We ensure comfortable accommodation at all destinations
+                              </p>
                             </div>
                           )}
                         </div>
@@ -929,24 +1084,111 @@ const TourDetail = () => {
                 <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                   <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginBottom: '5px' }}>Starting From</p>
                   <h2 style={{ fontSize: '2.5rem', margin: 0, color: 'var(--primary-color)' }}>
-                    ₹{tour.price.toLocaleString()}
+                    ₹{(tour.current_price || tour.base_price || 0).toLocaleString()}
                   </h2>
                   <p style={{ fontSize: '0.9rem', color: 'var(--text-tertiary)' }}>per person</p>
-                  
+
+                  {/* Available Dates Section */}
+                  {bookingAvailability.available && (
+                    <div style={{ 
+                      marginTop: '15px', 
+                      padding: '12px', 
+                      background: 'var(--success-bg)', 
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--success-color)'
+                    }}>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--success-color)', marginBottom: '8px', fontWeight: 'bold' }}>
+                        📅 Available Dates:
+                      </p>
+                      <div style={{ 
+                        display: 'flex', 
+                        flexWrap: 'wrap', 
+                        gap: '6px',
+                        justifyContent: 'center'
+                      }}>
+                        {(() => {
+                          // Get all available dates from both sources
+                          const allDates = [];
+                          const minBookingDate = dayjs().add(10, 'day').startOf('day');
+                          
+                          // From direct tour dates
+                          if (tour?.available_dates && Array.isArray(tour.available_dates)) {
+                            tour.available_dates.forEach(d => {
+                              const date = dayjs(d);
+                              if (date.isSameOrAfter(minBookingDate)) {
+                                allDates.push(date.format("YYYY-MM-DD"));
+                              }
+                            });
+                          }
+                          
+                          // From seasonal pricing
+                          if (tour.seasonal_pricings) {
+                            tour.seasonal_pricings.forEach(pricing => {
+                              if (pricing.available_dates && Array.isArray(pricing.available_dates)) {
+                                pricing.available_dates.forEach(dateStr => {
+                                  if (dateStr.includes('-')) {
+                                    const date = dayjs(dateStr);
+                                    if (date.isSameOrAfter(minBookingDate)) {
+                                      allDates.push(date.format("YYYY-MM-DD"));
+                                    }
+                                  }
+                                });
+                              }
+                            });
+                          }
+                          
+                          // From pricing details
+                          if (tour.pricing_details && Array.isArray(tour.pricing_details)) {
+                            tour.pricing_details.forEach(pricing => {
+                              if (pricing.available_dates && Array.isArray(pricing.available_dates)) {
+                                pricing.available_dates.forEach(dateStr => {
+                                  if (dateStr.includes('-')) {
+                                    const date = dayjs(dateStr);
+                                    if (date.isSameOrAfter(minBookingDate)) {
+                                      allDates.push(date.format("YYYY-MM-DD"));
+                                    }
+                                  }
+                                });
+                              }
+                            });
+                          }
+                          
+                          const uniqueDates = [...new Set(allDates)].sort();
+                          
+                          return uniqueDates.map(dateStr => (
+                            <span key={dateStr} style={{
+                              fontSize: '0.75rem',
+                              padding: '4px 8px',
+                              background: 'white',
+                              border: '1px solid var(--success-color)',
+                              borderRadius: '12px',
+                              color: 'var(--success-color)',
+                              fontWeight: 'bold'
+                            }}>
+                              {dayjs(dateStr).format('MMM DD')}
+                            </span>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Seasonal Pricing Display */}
                   {tour.seasonal_pricings && tour.seasonal_pricings.length > 0 && (
+
+
                     <div style={{ marginTop: '15px' }}>
                       {tour.seasonal_pricings.map((pricing, index) => (
-                        <div key={index} style={{ 
-                          marginBottom: '20px', 
-                          padding: '15px', 
-                          background: 'var(--bg-secondary)', 
+                        <div key={index} style={{
+                          marginBottom: '20px',
+                          padding: '15px',
+                          background: 'var(--bg-secondary)',
                           borderRadius: 'var(--radius-md)',
                           border: '1px solid var(--border-color)'
                         }}>
-                          <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
                             alignItems: 'center',
                             marginBottom: '10px'
                           }}>
@@ -957,7 +1199,7 @@ const TourDetail = () => {
                               {pricing.season?.date_range_display}
                             </span>
                           </div>
-                          
+
                           {pricing.available_dates && pricing.available_dates.length > 0 && (
                             <div style={{ marginBottom: '10px' }}>
                               <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -965,7 +1207,7 @@ const TourDetail = () => {
                               </span>
                             </div>
                           )}
-                          
+
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                             <div style={{ textAlign: 'center', padding: '8px', background: 'white', borderRadius: '4px' }}>
                               <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>2-Sharing</div>
@@ -986,7 +1228,7 @@ const TourDetail = () => {
                               </div>
                             </div>
                           </div>
-                          
+
                           {pricing.includes_return_air && (
                             <div style={{ marginTop: '8px', fontSize: '0.75rem', color: 'var(--success-color)' }}>
                               ✓ Includes Return Air Travel
@@ -1018,11 +1260,20 @@ const TourDetail = () => {
                       <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Hotels:</p>
                       {tour.destinations.map((destination, index) => {
                         const hotelInfo = tour.hotel_details && tour.hotel_details[destination.id];
+                        // Get actual hotel from destination.hotels array
+                        const actualHotel = destination.hotels && destination.hotels.length > 0 ? destination.hotels[0] : null;
+                        
                         return (
                           <div key={index} style={{ marginBottom: '5px' }}>
                             <span style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>{destination.name}:</span>
                             <span style={{ fontSize: '0.85rem', marginLeft: '5px' }}>
-                              {hotelInfo ? `${hotelInfo.hotel_name} (${hotelInfo.hotel_type})` : 'Hotel details to be confirmed'}
+                              {actualHotel 
+                                ? `${actualHotel.name} (${actualHotel.hotel_type || hotelInfo?.hotel_type || 'Standard'})` 
+                                : (hotelInfo 
+                                  ? `Hotel details to be confirmed (${hotelInfo.hotel_type})` 
+                                  : 'Hotel details to be confirmed'
+                                )
+                              }
                             </span>
                           </div>
                         );
@@ -1033,6 +1284,29 @@ const TourDetail = () => {
 
                 <Divider />
 
+                {/* Booking Availability Alert */}
+                {!bookingAvailability.available && (
+                  <Alert
+                    message="Booking Not Available"
+                    description={bookingAvailability.message}
+                    type="warning"
+                    icon={<ExclamationCircleOutlined />}
+                    style={{ marginBottom: '16px' }}
+                    showIcon
+                  />
+                )}
+
+                {bookingAvailability.available && (
+                  <Alert
+                    message="Booking Available"
+                    description={`Next available date: ${dayjs(bookingAvailability.nextAvailableDate).format('DD MMMM, YYYY')}`}
+                    type="success"
+                    icon={<CheckCircleOutlined />}
+                    style={{ marginBottom: '16px' }}
+                    showIcon
+                  />
+                )}
+
                 <Space direction="vertical" size="middle" style={{ width: '100%' }}>
                   <Button
                     type="primary"
@@ -1040,9 +1314,10 @@ const TourDetail = () => {
                     block
                     className="btn-primary-gradient"
                     style={{ height: '50px', fontSize: '1.1rem' }}
-                    onClick={() => requireAuth(() => navigate(`/booking/${id}`), "book this tour", () => setLoginModalVisible(true))}
+                    disabled={!bookingAvailability.available}
+                    onClick={() => isAuthenticated ? navigate(`/booking/${id}`) : setLoginModalVisible(true)}
                   >
-                    Book Now
+                    {bookingAvailability.available ? 'Book Now' : 'Booking Unavailable'}
                   </Button>
 
                   <Button
@@ -1066,10 +1341,18 @@ const TourDetail = () => {
 
                 <div style={{ marginTop: '20px', padding: '15px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', display: 'flex', gap: '10px' }}>
                   <InfoCircleOutlined style={{ color: 'var(--primary-color)', fontSize: '1.2rem' }} />
-                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0 }}>
-                    <strong>Free Cancellation</strong> <br />
-                    Cancel up to 24 hours in advance for a full refund.
-                  </p>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                    <p style={{ margin: '0 0 8px 0', fontWeight: 'bold' }}>Cancellation & Refund Policy</p>
+                    <ul style={{ margin: 0, paddingLeft: '16px' }}>
+                      <li>Within 24 hours of booking: 100% refund</li>
+                      <li>10+ days before tour start: 50% refund</li>
+                      <li>5-9 days before tour start: No refund</li>
+                      <li>Less than 5 days: No refund</li>
+                    </ul>
+                    <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                      Tours must be booked at least 10 days in advance.
+                    </p>
+                  </div>
                 </div>
               </Card>
             </motion.div>

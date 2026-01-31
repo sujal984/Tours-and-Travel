@@ -6,26 +6,19 @@ import {
   Card,
   message,
   Modal,
-  Form,
-  Input,
-  DatePicker,
-  Select,
   Tag,
 } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { apiClient } from "../../services/api";
 import { endpoints } from "../../constant/ENDPOINTS";
-
-const { RangePicker } = DatePicker;
-const { Option } = Select;
+import OfferForm from "./Form";
 
 const OffersList = () => {
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingOffer, setEditingOffer] = useState(null);
-  const [form] = Form.useForm();
 
   useEffect(() => {
     fetchOffers();
@@ -40,25 +33,7 @@ const OffersList = () => {
     } catch (error) {
       console.error("Error fetching offers:", error);
       message.error("Failed to load offers");
-      // Set dummy data
-      setOffers([
-        {
-          id: 1,
-          name: "Monsoon Special",
-          discount: "15% off",
-          start_date: "2024-08-01",
-          end_date: "2024-08-29",
-          status: "expired",
-        },
-        {
-          id: 2,
-          name: "Diwali Dhamaka Sale",
-          discount: "10% off",
-          start_date: "2024-10-12",
-          end_date: "2024-10-25",
-          status: "active",
-        },
-      ]);
+      setOffers([]);
     } finally {
       setLoading(false);
     }
@@ -66,47 +41,12 @@ const OffersList = () => {
 
   const handleAdd = () => {
     setEditingOffer(null);
-    form.resetFields();
     setModalVisible(true);
   };
 
   const handleEdit = (offer) => {
     setEditingOffer(offer);
-    form.setFieldsValue({
-      name: offer.name,
-      discount: offer.discount,
-      status: offer.status,
-      dateRange: [dayjs(offer.start_date), dayjs(offer.end_date)],
-    });
     setModalVisible(true);
-  };
-
-  const handleSubmit = async (values) => {
-    try {
-      const submitData = {
-        name: values.name,
-        discount_percentage: values.discount,
-        status: values.status,
-        start_date: values.dateRange[0].format("YYYY-MM-DD"),
-        end_date: values.dateRange[1].format("YYYY-MM-DD"),
-      };
-
-      if (editingOffer) {
-        await apiClient.put(
-          endpoints.GET_OFFER_DETAIL(editingOffer.id),
-          submitData
-        );
-        message.success("Offer updated successfully");
-      } else {
-        await apiClient.post(endpoints.GET_OFFERS, submitData);
-        message.success("Offer created successfully");
-      }
-      setModalVisible(false);
-      fetchOffers();
-    } catch (error) {
-      console.error("Error saving offer:", error);
-      message.error("Failed to save offer");
-    }
   };
 
   const handleDelete = async (id) => {
@@ -120,13 +60,35 @@ const OffersList = () => {
     }
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      active: "green",
-      inactive: "orange",
-      expired: "red",
-    };
-    return colors[status] || "default";
+  const handleModalClose = () => {
+    setModalVisible(false);
+    setEditingOffer(null);
+  };
+
+  const handleOfferSaved = () => {
+    fetchOffers();
+  };
+
+  const getStatusColor = (isActive, startDate, endDate) => {
+    const now = dayjs();
+    const start = dayjs(startDate);
+    const end = dayjs(endDate);
+    
+    if (!isActive) return "red";
+    if (now.isBefore(start)) return "orange";
+    if (now.isAfter(end)) return "red";
+    return "green";
+  };
+
+  const getStatusText = (isActive, startDate, endDate) => {
+    const now = dayjs();
+    const start = dayjs(startDate);
+    const end = dayjs(endDate);
+    
+    if (!isActive) return "INACTIVE";
+    if (now.isBefore(start)) return "UPCOMING";
+    if (now.isAfter(end)) return "EXPIRED";
+    return "ACTIVE";
   };
 
   const columns = [
@@ -138,31 +100,45 @@ const OffersList = () => {
     },
     {
       title: "Discount",
-      dataIndex: "discount_percentage",
+      dataIndex: "discount_display",
       key: "discount",
+      render: (discount, record) => (
+        <div>
+          <div style={{ fontWeight: 'bold' }}>{discount}</div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
+            {record.discount_type === 'PERCENTAGE' ? 'Percentage' : 'Fixed Amount'}
+          </div>
+        </div>
+      ),
     },
     {
       title: "Start Date",
       dataIndex: "start_date",
       key: "start_date",
-      render: (date) => new Date(date).toLocaleDateString(),
-      sorter: (a, b) => new Date(a.start_date) - new Date(b.start_date),
+      render: (date) => dayjs(date).format("DD MMM YYYY"),
+      sorter: (a, b) => dayjs(a.start_date).unix() - dayjs(b.start_date).unix(),
     },
     {
       title: "End Date",
       dataIndex: "end_date",
       key: "end_date",
-      render: (date) => new Date(date).toLocaleDateString(),
-      sorter: (a, b) => new Date(a.end_date) - new Date(b.end_date),
+      render: (date) => dayjs(date).format("DD MMM YYYY"),
+      sorter: (a, b) => dayjs(a.end_date).unix() - dayjs(b.end_date).unix(),
     },
     {
       title: "Status",
-      dataIndex: "is_active",
       key: "status",
-      render: (is_active) => {
-        const status = is_active ? "active" : "inactive";
-        return <Tag color={getStatusColor(status)}>{status.toUpperCase()}</Tag>;
+      render: (_, record) => {
+        const color = getStatusColor(record.is_active, record.start_date, record.end_date);
+        const text = getStatusText(record.is_active, record.start_date, record.end_date);
+        return <Tag color={color}>{text}</Tag>;
       },
+    },
+    {
+      title: "Applicable Tours",
+      dataIndex: "applicable_tours_count",
+      key: "applicable_tours",
+      render: (count) => count || "All Tours",
     },
     {
       title: "Actions",
@@ -186,6 +162,7 @@ const OffersList = () => {
             onClick={() => {
               Modal.confirm({
                 title: "Are you sure you want to delete this offer?",
+                content: "This action cannot be undone.",
                 onOk: () => handleDelete(record.id),
               });
             }}
@@ -228,63 +205,12 @@ const OffersList = () => {
         />
       </Card>
 
-      {/* Add/Edit Modal */}
-      <Modal
-        title={editingOffer ? "Edit Offer" : "Add Offer"}
-        open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        footer={null}
-        width={600}
-      >
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Form.Item
-            name="name"
-            label="Offer Name"
-            rules={[{ required: true, message: "Please enter offer name" }]}
-          >
-            <Input placeholder="Enter offer name" />
-          </Form.Item>
-
-          <Form.Item
-            name="discount"
-            label="Discount"
-            rules={[{ required: true, message: "Please enter discount" }]}
-          >
-            <Input placeholder="e.g., 15% off, ₹5000 off" />
-          </Form.Item>
-
-          <Form.Item
-            name="dateRange"
-            label="Offer Period"
-            rules={[{ required: true, message: "Please select offer period" }]}
-          >
-            <RangePicker style={{ width: "100%" }} />
-          </Form.Item>
-
-          <Form.Item
-            name="status"
-            label="Status"
-            rules={[{ required: true, message: "Please select status" }]}
-          >
-            <Select placeholder="Select status">
-              <Option value="active">Active</Option>
-              <Option value="inactive">Inactive</Option>
-              <Option value="expired">Expired</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item>
-            <div
-              style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}
-            >
-              <Button onClick={() => setModalVisible(false)}>Cancel</Button>
-              <Button type="primary" htmlType="submit">
-                {editingOffer ? "Update" : "Create"} Offer
-              </Button>
-            </div>
-          </Form.Item>
-        </Form>
-      </Modal>
+      <OfferForm
+        visible={modalVisible}
+        onClose={handleModalClose}
+        onSaved={handleOfferSaved}
+        initialValues={editingOffer}
+      />
     </div>
   );
 };

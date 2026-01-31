@@ -177,17 +177,7 @@ const RegisterModal = ({ open, onClose, onLoginClick }) => {
             </Button>
           </Form.Item>
 
-          <Divider style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem' }}>Or sign up with</Divider>
-
-          <div style={{ textAlign: "center", marginBottom: '20px' }}>
-            <Button
-              icon={<GoogleOutlined />}
-              size="large"
-              style={{ width: '100%', borderRadius: 'var(--radius-md)' }}
-            >
-              Google
-            </Button>
-          </div>
+         
 
           <div style={{ textAlign: "center" }}>
             <Text type="secondary">Already have an account? </Text>

@@ -10,25 +10,42 @@ import {
   Descriptions,
   Input,
   Select,
+  Form,
 } from 'antd';
 import {
   EyeOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  SwapOutlined,
+  MessageOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
 import { apiClient } from '../../services/api';
 import { endpoints } from '../../constant/ENDPOINTS';
 
 const { Search } = Input;
 const { Option } = Select;
+const { TextArea } = Input;
 
 const CustomPackagesList = () => {
   const [customPackages, setCustomPackages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+
+  // Modals state
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [responseModalVisible, setResponseModalVisible] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [convertModalVisible, setConvertModalVisible] = useState(false);
+
+  // Form states
+  const [tours, setTours] = useState([]);
+  const [loadingTours, setLoadingTours] = useState(false);
+  const [cancelForm] = Form.useForm();
+  const [convertForm] = Form.useForm();
+  const [responseForm] = Form.useForm();
 
   useEffect(() => {
     fetchCustomPackages();
@@ -43,50 +60,137 @@ const CustomPackagesList = () => {
     } catch (error) {
       console.error('Error fetching custom packages:', error);
       message.error('Failed to load custom packages');
-      // Set dummy data
-      setCustomPackages([
-        {
-          id: 1,
-          user: { username: 'john_doe', email: 'john@example.com' },
-          destination: 'Darjeeling, Lachung',
-          duration: '2 Days 3 Nights',
-          start_date: '2024-10-12',
-          no_of_people: 5,
-          hotel_preference: 'Premier Inn, Hilton Yas',
-          transportation_choice: 'Train/Flight',
-          type: 'Adventure',
-          status: 'pending',
-          created_at: '2024-01-15',
-        },
-        {
-          id: 2,
-          user: { username: 'jane_smith', email: 'jane@example.com' },
-          destination: 'Hoi an, Ha Long Bay, Phu Quoc Island',
-          duration: '7 Days 8 Nights',
-          start_date: '2024-09-26',
-          no_of_people: 2,
-          hotel_preference: 'Windsor Bay, Majestic Beach Resort',
-          transportation_choice: 'Flight',
-          type: 'Honeymoon',
-          status: 'approved',
-          created_at: '2024-01-10',
-        },
-      ]);
+      setCustomPackages([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchTours = async () => {
+    try {
+      setLoadingTours(true);
+      const response = await apiClient.get(endpoints.GET_ALL_TOURS);
+      const toursData = response.data?.data || response.data?.results || [];
+      setTours(Array.isArray(toursData) ? toursData : []);
+    } catch (error) {
+      console.error('Error fetching tours:', error);
+      message.error('Failed to load tours');
+    } finally {
+      setLoadingTours(false);
+    }
+  };
+
   const handleStatusUpdate = async (packageId, newStatus) => {
+    if (newStatus === 'cancelled') {
+      setSelectedPackage(customPackages.find(p => p.id === packageId));
+      setCancelModalVisible(true);
+      return;
+    }
+
     try {
       await apiClient.patch(endpoints.GET_CUSTOM_PACKAGE_DETAIL(packageId), {
-        status: newStatus,
+        status: newStatus.toUpperCase(),
       });
       message.success(`Custom package ${newStatus} successfully`);
       fetchCustomPackages();
     } catch (error) {
       console.error('Error updating package status:', error);
       message.error('Failed to update package status');
+    }
+  };
+
+  const handleCancelSubmit = async () => {
+    try {
+      const values = await cancelForm.validateFields();
+      setLoading(true);
+      await apiClient.patch(endpoints.GET_CUSTOM_PACKAGE_DETAIL(selectedPackage.id), {
+        status: 'CANCELLED',
+        admin_notes: values.reason
+      });
+      message.success('Custom package cancelled successfully');
+      setCancelModalVisible(false);
+      cancelForm.resetFields();
+      fetchCustomPackages();
+    } catch (error) {
+      console.error('Error cancelling package:', error);
+      message.error('Failed to cancel package');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConvertClick = (pkg) => {
+    setSelectedPackage(pkg);
+    setConvertModalVisible(true);
+    fetchTours();
+  };
+
+  const handleConvertSubmit = async () => {
+    try {
+      const values = await convertForm.validateFields();
+      setLoading(true);
+
+      const tourId = values.tour_id;
+
+      await apiClient.post(endpoints.CONVERT_CUSTOM_PACKAGE_TO_BOOKING(selectedPackage.id), {
+        tour_id: tourId
+      });
+
+      message.success('Custom package converted to booking successfully');
+      setConvertModalVisible(false);
+      convertForm.resetFields();
+      fetchCustomPackages();
+    } catch (error) {
+      console.error('Error converting package to booking:', error);
+      message.error(error.response?.data?.message || 'Failed to convert package to booking');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResponseClick = (pkg) => {
+    setSelectedPackage(pkg);
+    setResponseModalVisible(true);
+    if (pkg.admin_response || pkg.quoted_price) {
+      responseForm.setFieldsValue({
+        admin_response: pkg.admin_response || '',
+        quoted_price: pkg.quoted_price || '',
+        status: pkg.status || 'PROCESSING'
+      });
+    }
+  };
+
+  const handleResponseSubmit = async () => {
+    try {
+      const values = await responseForm.validateFields();
+      setLoading(true);
+      
+      await apiClient.patch(endpoints.GET_CUSTOM_PACKAGE_DETAIL(selectedPackage.id), {
+        admin_response: values.admin_response,
+        quoted_price: values.quoted_price ? parseFloat(values.quoted_price) : null,
+        status: values.status.toUpperCase(),
+        admin_notes: values.admin_notes || ''
+      });
+      
+      message.success('Response sent successfully');
+      setResponseModalVisible(false);
+      responseForm.resetFields();
+      fetchCustomPackages();
+    } catch (error) {
+      console.error('Error sending response:', error);
+      message.error('Failed to send response');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const parseDetailedItinerary = (detailedItinerary) => {
+    try {
+      return typeof detailedItinerary === 'string' 
+        ? JSON.parse(detailedItinerary) 
+        : detailedItinerary;
+    } catch {
+      return null;
     }
   };
 
@@ -97,21 +201,22 @@ const CustomPackagesList = () => {
 
   const filteredPackages = Array.isArray(customPackages) ? customPackages.filter((pkg) => {
     const matchesSearch =
-      pkg.user?.username?.toLowerCase().includes(searchText.toLowerCase()) ||
-      pkg.user?.email?.toLowerCase().includes(searchText.toLowerCase()) ||
+      pkg.customer_display_name?.toLowerCase().includes(searchText.toLowerCase()) ||
+      pkg.customer_display_email?.toLowerCase().includes(searchText.toLowerCase()) ||
       pkg.destination?.toLowerCase().includes(searchText.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || pkg.status === filterStatus;
+    const matchesStatus = filterStatus === 'all' || pkg.status?.toLowerCase() === filterStatus;
     return matchesSearch && matchesStatus;
   }) : [];
 
   const getStatusColor = (status) => {
     const colors = {
-      pending: 'orange',
-      approved: 'green',
-      rejected: 'red',
-      completed: 'blue',
+      PENDING: 'orange',
+      PROCESSING: 'blue',
+      QUOTED: 'purple',
+      CONFIRMED: 'green',
+      CANCELLED: 'red',
     };
-    return colors[status] || 'default';
+    return colors[status?.toUpperCase()] || 'default';
   };
 
   const columns = [
@@ -120,15 +225,15 @@ const CustomPackagesList = () => {
       dataIndex: 'id',
       key: 'id',
       width: 100,
-      render: (id) => `#${id}`,
+      render: (id) => <span style={{ fontFamily: 'monospace' }}>#{id.substring(0, 8)}</span>,
     },
     {
       title: 'Customer',
       key: 'customer',
       render: (_, record) => (
         <div>
-          <div style={{ fontWeight: 'bold' }}>{record.user?.username}</div>
-          <div style={{ fontSize: '12px', color: '#666' }}>{record.user?.email}</div>
+          <div style={{ fontWeight: 'bold' }}>{record.customer_display_name || 'Anonymous'}</div>
+          <div style={{ fontSize: '12px', color: '#666' }}>{record.customer_display_email || 'N/A'}</div>
         </div>
       ),
     },
@@ -137,24 +242,23 @@ const CustomPackagesList = () => {
       dataIndex: 'destination',
       key: 'destination',
       ellipsis: true,
-      width: 200,
+      width: 150,
     },
     {
-      title: 'Duration',
-      dataIndex: 'duration',
-      key: 'duration',
-      width: 120,
-    },
-    {
-      title: 'People',
-      dataIndex: 'no_of_people',
-      key: 'no_of_people',
-      width: 80,
+      title: 'Details',
+      key: 'details',
+      width: 150,
+      render: (_, record) => (
+        <div style={{ fontSize: '12px' }}>
+          <div>{record.duration}</div>
+          <div style={{ color: '#888' }}>{record.participants_count} People</div>
+        </div>
+      )
     },
     {
       title: 'Type',
-      dataIndex: 'type',
-      key: 'type',
+      dataIndex: 'package_type',
+      key: 'package_type',
       width: 100,
       render: (type) => <Tag color="blue">{type}</Tag>,
     },
@@ -162,30 +266,40 @@ const CustomPackagesList = () => {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status) => (
-        <Tag color={getStatusColor(status)}>
-          {status?.toUpperCase()}
-        </Tag>
+      width: 120,
+      render: (status, record) => (
+        <Space direction="vertical" size={0}>
+          <Tag color={getStatusColor(status)}>
+            {status?.toUpperCase()}
+          </Tag>
+          {status === 'CANCELLED' && record.admin_notes && (
+            <span style={{ fontSize: '10px', color: '#999', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              Reason: {record.admin_notes}
+            </span>
+          )}
+        </Space>
       ),
       filters: [
         { text: 'Pending', value: 'pending' },
-        { text: 'Approved', value: 'approved' },
-        { text: 'Rejected', value: 'rejected' },
-        { text: 'Completed', value: 'completed' },
+        { text: 'Processing', value: 'processing' },
+        { text: 'Quoted', value: 'quoted' },
+        { text: 'Confirmed', value: 'confirmed' },
+        { text: 'Cancelled', value: 'cancelled' },
       ],
-      onFilter: (value, record) => record.status === value,
+      onFilter: (value, record) => record.status?.toLowerCase() === value,
     },
     {
       title: 'Created',
       dataIndex: 'created_at',
       key: 'created_at',
+      width: 110,
       render: (date) => new Date(date).toLocaleDateString(),
       sorter: (a, b) => new Date(a.created_at) - new Date(b.created_at),
     },
     {
       title: 'Actions',
       key: 'actions',
-      width: 200,
+      width: 300,
       render: (_, record) => (
         <Space>
           <Button
@@ -196,25 +310,26 @@ const CustomPackagesList = () => {
           >
             View
           </Button>
-          {record.status === 'pending' && (
-            <>
-              <Button
-                type="primary"
-                size="small"
-                icon={<CheckCircleOutlined />}
-                onClick={() => handleStatusUpdate(record.id, 'approved')}
-              >
-                Approve
-              </Button>
-              <Button
-                danger
-                size="small"
-                icon={<CloseCircleOutlined />}
-                onClick={() => handleStatusUpdate(record.id, 'rejected')}
-              >
-                Reject
-              </Button>
-            </>
+          {['PENDING', 'PROCESSING', 'QUOTED'].includes(record.status?.toUpperCase()) && (
+            <Button
+              type="default"
+              size="small"
+              icon={<MessageOutlined />}
+              onClick={() => handleResponseClick(record)}
+              style={{ backgroundColor: '#52c41a', borderColor: '#52c41a', color: 'white' }}
+            >
+              Respond
+            </Button>
+          )}
+          {record.status?.toUpperCase() === 'CONFIRMED' && (
+            <Button
+              type="default"
+              size="small"
+              icon={<SwapOutlined />}
+              onClick={() => handleConvertClick(record)}
+            >
+              Convert
+            </Button>
           )}
         </Space>
       ),
@@ -244,9 +359,10 @@ const CustomPackagesList = () => {
           >
             <Option value="all">All Status</Option>
             <Option value="pending">Pending</Option>
-            <Option value="approved">Approved</Option>
-            <Option value="rejected">Rejected</Option>
-            <Option value="completed">Completed</Option>
+            <Option value="processing">Processing</Option>
+            <Option value="quoted">Quoted</Option>
+            <Option value="confirmed">Confirmed</Option>
+            <Option value="cancelled">Cancelled</Option>
           </Select>
         </div>
 
@@ -268,7 +384,7 @@ const CustomPackagesList = () => {
 
       {/* Package Details Modal */}
       <Modal
-        title={`Custom Package Details - #${selectedPackage?.id}`}
+        title={`Custom Package Details - #${selectedPackage?.id?.substring(0, 8)}`}
         open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
         footer={[
@@ -276,48 +392,151 @@ const CustomPackagesList = () => {
             Close
           </Button>,
         ]}
-        width={800}
+        width={900}
       >
         {selectedPackage && (
-          <Descriptions bordered column={2}>
-            <Descriptions.Item label="Customer" span={2}>
-              <div>
-                <strong>{selectedPackage.user?.username}</strong>
-                <br />
-                <span style={{ color: '#666' }}>{selectedPackage.user?.email}</span>
+          <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+            <Descriptions bordered column={2}>
+              <Descriptions.Item label="Customer" span={2}>
+                <div>
+                  <strong>{selectedPackage.customer_display_name || 'Anonymous'}</strong>
+                  <br />
+                  <span style={{ color: '#666' }}>{selectedPackage.customer_display_email || 'N/A'}</span>
+                </div>
+              </Descriptions.Item>
+              <Descriptions.Item label="Destination" span={2}>
+                {selectedPackage.destination}
+              </Descriptions.Item>
+              <Descriptions.Item label="Duration">
+                {selectedPackage.duration}
+              </Descriptions.Item>
+              <Descriptions.Item label="Start Date">
+                {new Date(selectedPackage.start_date).toLocaleDateString()}
+              </Descriptions.Item>
+              <Descriptions.Item label="Contact Number">
+                {selectedPackage.contact_number}
+              </Descriptions.Item>
+              <Descriptions.Item label="Status">
+                <Tag color={getStatusColor(selectedPackage.status)}>
+                  {selectedPackage.status?.toUpperCase()}
+                </Tag>
+              </Descriptions.Item>
+            </Descriptions>
+
+            {/* Admin Response */}
+            {selectedPackage.admin_response && (
+              <div style={{ marginTop: '20px' }}>
+                <Card size="small" title="Admin Response" style={{ background: '#f6ffed' }}>
+                  <p>{selectedPackage.admin_response}</p>
+                  {selectedPackage.quoted_price && (
+                    <p><strong>Quoted Price: ₹{selectedPackage.quoted_price}</strong></p>
+                  )}
+                </Card>
               </div>
-            </Descriptions.Item>
-            <Descriptions.Item label="Destination" span={2}>
-              {selectedPackage.destination}
-            </Descriptions.Item>
-            <Descriptions.Item label="Duration">
-              {selectedPackage.duration}
-            </Descriptions.Item>
-            <Descriptions.Item label="Start Date">
-              {new Date(selectedPackage.start_date).toLocaleDateString()}
-            </Descriptions.Item>
-            <Descriptions.Item label="Number of People">
-              {selectedPackage.no_of_people}
-            </Descriptions.Item>
-            <Descriptions.Item label="Tour Type">
-              <Tag color="blue">{selectedPackage.type}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Hotel Preference" span={2}>
-              {selectedPackage.hotel_preference}
-            </Descriptions.Item>
-            <Descriptions.Item label="Transportation">
-              {selectedPackage.transportation_choice}
-            </Descriptions.Item>
-            <Descriptions.Item label="Status">
-              <Tag color={getStatusColor(selectedPackage.status)}>
-                {selectedPackage.status?.toUpperCase()}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Created Date" span={2}>
-              {new Date(selectedPackage.created_at).toLocaleDateString()}
-            </Descriptions.Item>
-          </Descriptions>
+            )}
+          </div>
         )}
+      </Modal>
+
+      {/* Admin Response Modal */}
+      <Modal
+        title={`Respond to Custom Package Request - #${selectedPackage?.id?.substring(0, 8)}`}
+        open={responseModalVisible}
+        onCancel={() => setResponseModalVisible(false)}
+        onOk={handleResponseSubmit}
+        okText="Send Response"
+        okButtonProps={{ loading: loading }}
+        width={700}
+      >
+        <Form form={responseForm} layout="vertical">
+          <Form.Item
+            name="admin_response"
+            label="Response Message"
+            rules={[{ required: true, message: 'Please provide a response message' }]}
+          >
+            <TextArea 
+              rows={6} 
+              placeholder="Write your detailed response to the customer's request..."
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="quoted_price"
+            label="Quoted Price (₹)"
+          >
+            <Input 
+              type="number" 
+              placeholder="Enter quoted price"
+              prefix="₹"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="status"
+            label="Update Status"
+            rules={[{ required: true }]}
+            initialValue="PROCESSING"
+          >
+            <Select>
+              <Option value="PROCESSING">Processing</Option>
+              <Option value="QUOTED">Quoted</Option>
+              <Option value="CONFIRMED">Confirmed</Option>
+            </Select>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Cancellation Modal */}
+      <Modal
+        title="Cancel Custom Package Request"
+        open={cancelModalVisible}
+        onCancel={() => setCancelModalVisible(false)}
+        onOk={handleCancelSubmit}
+        okText="Confirm Cancellation"
+        okButtonProps={{ danger: true, loading: loading }}
+      >
+        <Form form={cancelForm} layout="vertical">
+          <p>Are you sure you want to cancel the request from <strong>{selectedPackage?.customer_display_name}</strong>?</p>
+          <Form.Item
+            name="reason"
+            label="Cancellation Reason"
+            rules={[{ required: true, message: 'Please provide a reason for cancellation' }]}
+          >
+            <TextArea rows={4} placeholder="Enter reason for customer..." />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Convert to Booking Modal */}
+      <Modal
+        title="Convert Custom Package to Booking"
+        open={convertModalVisible}
+        onCancel={() => setConvertModalVisible(false)}
+        onOk={handleConvertSubmit}
+        okText="Convert to Booking"
+        okButtonProps={{ loading: loading }}
+      >
+        <Form form={convertForm} layout="vertical">
+          <p>Select a matching tour to convert this custom request into a standard booking.</p>
+          <Form.Item
+            name="tour_id"
+            label="Target Tour"
+            rules={[{ required: true, message: 'Please select a tour' }]}
+          >
+            <Select
+              showSearch
+              placeholder="Select a tour"
+              optionFilterProp="children"
+              loading={loadingTours}
+            >
+              {tours.map(tour => (
+                <Option key={tour.id} value={tour.id}>
+                  {tour.name} ({tour.duration_days} Days) - ₹{tour.base_price}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

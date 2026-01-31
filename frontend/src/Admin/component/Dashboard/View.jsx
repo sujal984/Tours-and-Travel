@@ -13,7 +13,6 @@ import {
 import {
   UserOutlined,
   ShoppingCartOutlined,
-  DollarOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
 } from "@ant-design/icons";
@@ -21,6 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../../services/api";
 import { endpoints } from "../../../constant/ENDPOINTS";
 
+import { MdCurrencyRupee } from "react-icons/md";
 
 
 const Dashboard = () => {
@@ -41,7 +41,7 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch bookings for stats
       const bookingsRes = await apiClient.get(endpoints.GET_BOOKINGS);
       // Handle both API response formats
@@ -56,14 +56,28 @@ const Dashboard = () => {
       const paymentsRes = await apiClient.get(endpoints.GET_PAYMENTS);
       const paymentsData = paymentsRes.data?.data || paymentsRes.data?.results || [];
 
+      // Fetch refunds
+      const refundsRes = await apiClient.get(endpoints.GET_REFUNDS);
+      const refundsData = refundsRes.data?.data || refundsRes.data?.results || [];
+
       // Calculate stats safely
-      const completedCount = Array.isArray(bookingsData) 
-        ? bookingsData.filter(b => b.status === "CONFIRMED").length 
+      const completedCount = Array.isArray(bookingsData)
+        ? bookingsData.filter(b => b.status === "CONFIRMED").length
         : 0;
-        
-      const totalPaymentAmount = Array.isArray(paymentsData)
-        ? paymentsData.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
+
+      const totalPaymentsSum = Array.isArray(paymentsData)
+        ? paymentsData
+          .filter(p => p.status === "SUCCESS")
+          .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
         : 0;
+
+      const totalRefundsSum = Array.isArray(refundsData)
+        ? refundsData
+          .filter(r => r.status === "APPROVED" || r.status === "PENDING")
+          .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0)
+        : 0;
+
+      const totalPaymentAmount = totalPaymentsSum - totalRefundsSum;
 
       setStats({
         totalUsers: Array.isArray(usersData) ? usersData.length : 0,
@@ -77,7 +91,7 @@ const Dashboard = () => {
     } catch (err) {
       message.error("Failed to load dashboard data");
       console.error(err);
-      
+
       // Set default stats on error
       setStats({
         totalUsers: 0,
@@ -144,7 +158,7 @@ const Dashboard = () => {
             <Statistic
               title="Revenue"
               value={stats.totalPayments}
-              prefix={<DollarOutlined />}
+              prefix={< MdCurrencyRupee />}
               precision={2}
               styles={{ content: { color: "#52c41a" } }}
             />

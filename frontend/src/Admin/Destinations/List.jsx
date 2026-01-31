@@ -5,27 +5,27 @@ import {
   Space,
   Card,
   message,
-  Modal,
-  Form,
-  Input,
   Popconfirm,
+  Typography,
+  Image,
+  Tag
 } from 'antd';
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
+  EyeOutlined
 } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../services/api';
 import { endpoints } from '../../constant/ENDPOINTS';
 
-const { TextArea } = Input;
+const { Title } = Typography;
 
 const DestinationsList = () => {
+  const navigate = useNavigate();
   const [destinations, setDestinations] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingDestination, setEditingDestination] = useState(null);
-  const [form] = Form.useForm();
 
   useEffect(() => {
     fetchDestinations();
@@ -40,74 +40,15 @@ const DestinationsList = () => {
     } catch (error) {
       console.error('Error fetching destinations:', error);
       message.error('Failed to load destinations');
-      // Set dummy data
-      setDestinations([
-        {
-          id: 1,
-          name: 'Sikkim',
-          description: 'Beautiful mountain state in Northeast India',
-          places: 'Gangtok, Pelling, Lachung, Yumthang Valley',
-        },
-        {
-          id: 2,
-          name: 'Vietnam',
-          description: 'Southeast Asian country known for beaches and rivers',
-          places: 'Ho Chi Minh City, Hanoi, Ha Long Bay, Hoi An',
-        },
-        {
-          id: 3,
-          name: 'Goa',
-          description: 'Coastal state known for beaches and Portuguese heritage',
-          places: 'Panaji, Calangute, Baga, Old Goa',
-        },
-        {
-          id: 4,
-          name: 'Rajasthan',
-          description: 'Land of kings with rich cultural heritage',
-          places: 'Jaipur, Udaipur, Jodhpur, Jaisalmer',
-        },
-      ]);
+      setDestinations([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAdd = () => {
-    setEditingDestination(null);
-    form.resetFields();
-    setModalVisible(true);
-  };
-
-  const handleEdit = (destination) => {
-    setEditingDestination(destination);
-    form.setFieldsValue({
-      name: destination.name,
-      description: destination.description,
-      places: destination.places,
-    });
-    setModalVisible(true);
-  };
-
-  const handleSubmit = async (values) => {
-    try {
-      if (editingDestination) {
-        await apiClient.put(endpoints.GET_DESTINATION_DETAIL(editingDestination.id), values);
-        message.success('Destination updated successfully');
-      } else {
-        await apiClient.post(endpoints.GET_DESTINATIONS, values);
-        message.success('Destination created successfully');
-      }
-      setModalVisible(false);
-      fetchDestinations();
-    } catch (error) {
-      console.error('Error saving destination:', error);
-      message.error('Failed to save destination');
-    }
-  };
-
   const handleDelete = async (id) => {
     try {
-      await apiClient.delete(endpoints.GET_DESTINATION_DETAIL(id));
+      await apiClient.delete(endpoints.DELETE_DESTINATION(id));
       message.success('Destination deleted successfully');
       fetchDestinations();
     } catch (error) {
@@ -122,6 +63,13 @@ const DestinationsList = () => {
       dataIndex: 'name',
       key: 'name',
       sorter: (a, b) => a.name.localeCompare(b.name),
+      render: (text) => <strong>{text}</strong>
+    },
+    {
+      title: 'Country',
+      dataIndex: 'country',
+      key: 'country',
+      render: (text) => text || '-'
     },
     {
       title: 'Description',
@@ -131,28 +79,69 @@ const DestinationsList = () => {
       width: 300,
     },
     {
-      title: 'Places to Visit',
+      title: 'Places',
       dataIndex: 'places',
       key: 'places',
       ellipsis: true,
       width: 250,
     },
     {
+      title: 'Images',
+      dataIndex: 'images',
+      key: 'images',
+      render: (images) => (
+        <Space>
+          <Tag color="blue">{images?.length || 0} images</Tag>
+          {images && images.length > 0 && images[0].image && (
+            <Image
+              src={images[0].image.startsWith('http') 
+                ? images[0].image 
+                : `http://127.0.0.1:8000${images[0].image}`}
+              alt="Preview"
+              width={40}
+              height={40}
+              style={{ objectFit: 'cover', borderRadius: '4px' }}
+              fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMIAAADDCAYAAADQvc6UAAABRWlDQ1BJQ0MgUHJvZmlsZQAAKJFjYGASSSwoyGFhYGDIzSspCnJ3UoiIjFJgf8LAwSDCIMogwMCcmFxc4BgQ4ANUwgCjUcG3awyMIPqyLsis7PPOq3QdDFcvjV3jOD1boQVTPQrgSkktTgbSf4A4LbmgqISBgTEFyFYuLykAsTuAbJEioKOA7DkgdjqEvQHEToKwj4DVhAQ5A9k3gGyB5IxEoBmML4BsnSQk8XQkNtReEOBxcfXxUQg1Mjc0dyHgXNJBSWpFCYh2zi+oLMpMzyhRcASGUqqCZ16yno6CkYGRAQMDKMwhqj/fAIcloxgHQqxAjIHBEugw5sUIsSQpBobtQPdLciLEVJYzMPBHMDBsayhILEqEO4DxG0txmrERhM29nYGBddr//5/DGRjYNRkY/l7////39v///y4Dmn+LgeHANwDrkl1AuO+pmgAAADhlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAAqACAAQAAAABAAAAwqADAAQAAAABAAAAwwAAAAD9b/HnAAAHlklEQVR4Ae3dP3Ik1RnG4W+FgYxN"
+            />
+          )}
+        </Space>
+      )
+    },
+    {
+      title: 'Status',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      render: (isActive) => (
+        <Tag color={isActive ? 'green' : 'red'}>
+          {isActive ? 'Active' : 'Inactive'}
+        </Tag>
+      )
+    },
+    {
       title: 'Actions',
       key: 'actions',
-      width: 150,
+      width: 200,
       render: (_, record) => (
         <Space>
           <Button
             type="primary"
             size="small"
+            icon={<EyeOutlined />}
+            onClick={() => navigate(`/admin/destinations/view/${record.id}`)}
+          >
+            View
+          </Button>
+          <Button
+            type="default"
+            size="small"
             icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
+            onClick={() => navigate(`/admin/destinations/edit/${record.id}`)}
           >
             Edit
           </Button>
           <Popconfirm
-            title="Are you sure you want to delete this destination?"
+            title="Delete Destination"
+            description="Are you sure you want to delete this destination?"
             onConfirm={() => handleDelete(record.id)}
             okText="Yes"
             cancelText="No"
@@ -172,14 +161,15 @@ const DestinationsList = () => {
   ];
 
   return (
-    <div>
+    <div style={{ padding: '24px' }}>
       <Card>
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0 }}>Destinations Management</h2>
+          <Title level={2} style={{ margin: 0 }}>Destinations Management</Title>
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            onClick={handleAdd}
+            size="large"
+            onClick={() => navigate('/admin/destinations/create')}
           >
             Add Destination
           </Button>
@@ -198,62 +188,6 @@ const DestinationsList = () => {
           }}
         />
       </Card>
-
-      {/* Add/Edit Modal */}
-      <Modal
-        title={editingDestination ? 'Edit Destination' : 'Add Destination'}
-        open={modalVisible}
-        onCancel={() => setModalVisible(false)}
-        footer={null}
-        width={600}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-        >
-          <Form.Item
-            name="name"
-            label="Destination Name"
-            rules={[{ required: true, message: 'Please enter destination name' }]}
-          >
-            <Input placeholder="Enter destination name" />
-          </Form.Item>
-
-          <Form.Item
-            name="description"
-            label="Description"
-            rules={[{ required: true, message: 'Please enter description' }]}
-          >
-            <TextArea
-              rows={4}
-              placeholder="Enter destination description"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="places"
-            label="Places to Visit"
-            rules={[{ required: true, message: 'Please enter places to visit' }]}
-          >
-            <TextArea
-              rows={3}
-              placeholder="Enter places to visit (comma separated)"
-            />
-          </Form.Item>
-
-          <Form.Item>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <Button onClick={() => setModalVisible(false)}>
-                Cancel
-              </Button>
-              <Button type="primary" htmlType="submit">
-                {editingDestination ? 'Update' : 'Create'} Destination
-              </Button>
-            </div>
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   );
 };

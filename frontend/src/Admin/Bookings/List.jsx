@@ -109,48 +109,51 @@ const BookingsList = () => {
 
   const filteredBookings = Array.isArray(bookings)
     ? bookings.filter((booking) => {
-        const matchesSearch =
-          booking.user_details?.username
-            ?.toLowerCase()
-            .includes(searchText.toLowerCase()) ||
-          booking.user_details?.email
-            ?.toLowerCase()
-            .includes(searchText.toLowerCase()) ||
-          booking.user_details?.full_name
-            ?.toLowerCase()
-            .includes(searchText.toLowerCase()) ||
-          booking.user?.username
-            ?.toLowerCase()
-            .includes(searchText.toLowerCase()) ||
-          booking.user?.email
-            ?.toLowerCase()
-            .includes(searchText.toLowerCase()) ||
-          booking.tour_details?.name
-            ?.toLowerCase()
-            .includes(searchText.toLowerCase()) ||
-          booking.tour_name
-            ?.toLowerCase()
-            .includes(searchText.toLowerCase()) ||
-          booking.tour?.title
-            ?.toLowerCase()
-            .includes(searchText.toLowerCase());
-        const matchesStatus =
-          filterStatus === "all" ||
-          booking.status?.toUpperCase() === filterStatus.toUpperCase();
-        return matchesSearch && matchesStatus;
-      })
+      const matchesSearch =
+        booking.user_details?.username
+          ?.toLowerCase()
+          .includes(searchText.toLowerCase()) ||
+        booking.user_details?.email
+          ?.toLowerCase()
+          .includes(searchText.toLowerCase()) ||
+        booking.user_details?.full_name
+          ?.toLowerCase()
+          .includes(searchText.toLowerCase()) ||
+        booking.user?.username
+          ?.toLowerCase()
+          .includes(searchText.toLowerCase()) ||
+        booking.user?.email
+          ?.toLowerCase()
+          .includes(searchText.toLowerCase()) ||
+        booking.tour_details?.name
+          ?.toLowerCase()
+          .includes(searchText.toLowerCase()) ||
+        booking.tour_name
+          ?.toLowerCase()
+          .includes(searchText.toLowerCase()) ||
+        booking.tour?.title
+          ?.toLowerCase()
+          .includes(searchText.toLowerCase());
+      const matchesStatus =
+        filterStatus === "all" ||
+        booking.status?.toUpperCase() === filterStatus.toUpperCase();
+      return matchesSearch && matchesStatus;
+    })
     : [];
 
   const getStatusColor = (status) => {
     const colors = {
       CONFIRMED: "green",
       confirmed: "green",
-      PENDING: "orange", 
+      PENDING: "orange",
       pending: "orange",
       CANCELLED: "red",
       cancelled: "red",
       COMPLETED: "blue",
       completed: "blue",
+      REFUND_PENDING: "orange",
+      CANCELLED_REFUNDED: "cyan",
+      CANCELLED_NOT_REFUNDED: "volcano",
     };
     return colors[status] || "default";
   };
@@ -180,15 +183,15 @@ const BookingsList = () => {
       render: (_, record) => (
         <div>
           <div style={{ fontWeight: "bold" }}>
-            {record.user_details?.full_name || 
-             record.user_details?.username || 
-             record.user?.username || 
-             'N/A'}
+            {record.user_details?.full_name ||
+              record.user_details?.username ||
+              record.user?.username ||
+              'N/A'}
           </div>
           <div style={{ fontSize: "12px", color: "#666" }}>
-            {record.user_details?.email || 
-             record.user?.email || 
-             'N/A'}
+            {record.user_details?.email ||
+              record.user?.email ||
+              'N/A'}
           </div>
         </div>
       ),
@@ -199,15 +202,15 @@ const BookingsList = () => {
       render: (_, record) => (
         <div>
           <div style={{ fontWeight: "bold" }}>
-            {record.tour_details?.name || 
-             record.tour_name || 
-             record.tour?.title || 
-             'N/A'}
+            {record.tour_details?.name ||
+              record.tour_name ||
+              record.tour?.title ||
+              'N/A'}
           </div>
           <div style={{ fontSize: "12px", color: "#666" }}>
-            {record.tour_details?.duration_days || 
-             record.tour?.duration_days || 
-             0} Days
+            {record.tour_details?.duration_days ||
+              record.tour?.duration_days ||
+              0} Days
           </div>
         </div>
       ),
@@ -245,6 +248,9 @@ const BookingsList = () => {
         { text: "Pending", value: "PENDING" },
         { text: "Cancelled", value: "CANCELLED" },
         { text: "Completed", value: "COMPLETED" },
+        { text: "Refund Pending", value: "REFUND_PENDING" },
+        { text: "Cancelled & Refunded", value: "CANCELLED_REFUNDED" },
+        { text: "Cancelled & Refund Rejected", value: "CANCELLED_NOT_REFUNDED" },
       ],
       onFilter: (value, record) => record.status === value,
     },
@@ -294,6 +300,27 @@ const BookingsList = () => {
                 onClick={() => handleStatusUpdate(record.id, "CANCELLED")}
               >
                 Cancel
+              </Button>
+            </>
+          )}
+          {record.status === "REFUND_PENDING" && (
+            <>
+              <Button
+                type="primary"
+                size="small"
+                loading={updatingBookingId === record.id}
+                onClick={() => handleStatusUpdate(record.id, "CANCELLED_REFUNDED")}
+                style={{ backgroundColor: '#52c41a', borderColor: '#52c41a' }}
+              >
+                Accept Refund
+              </Button>
+              <Button
+                danger
+                size="small"
+                loading={updatingBookingId === record.id}
+                onClick={() => handleStatusUpdate(record.id, "CANCELLED_NOT_REFUNDED")}
+              >
+                Reject Refund
               </Button>
             </>
           )}
@@ -355,6 +382,9 @@ const BookingsList = () => {
             <Option value="PENDING">Pending</Option>
             <Option value="CANCELLED">Cancelled</Option>
             <Option value="COMPLETED">Completed</Option>
+            <Option value="REFUND_PENDING">Refund Pending</Option>
+            <Option value="CANCELLED_REFUNDED">Cancelled & Refunded</Option>
+            <Option value="CANCELLED_NOT_REFUNDED">Cancelled & Refund Rejected</Option>
           </Select>
         </div>
 
@@ -391,32 +421,32 @@ const BookingsList = () => {
             <Descriptions.Item label="Customer" span={2}>
               <div>
                 <strong>
-                  {selectedBooking.user_details?.full_name || 
-                   selectedBooking.user_details?.username || 
-                   selectedBooking.user?.username || 
-                   'N/A'}
+                  {selectedBooking.user_details?.full_name ||
+                    selectedBooking.user_details?.username ||
+                    selectedBooking.user?.username ||
+                    'N/A'}
                 </strong>
                 <br />
                 <span style={{ color: "#666" }}>
-                  {selectedBooking.user_details?.email || 
-                   selectedBooking.user?.email || 
-                   'N/A'}
+                  {selectedBooking.user_details?.email ||
+                    selectedBooking.user?.email ||
+                    'N/A'}
                 </span>
               </div>
             </Descriptions.Item>
             <Descriptions.Item label="Tour" span={2}>
               <div>
                 <strong>
-                  {selectedBooking.tour_details?.name || 
-                   selectedBooking.tour_name || 
-                   selectedBooking.tour?.title || 
-                   'N/A'}
+                  {selectedBooking.tour_details?.name ||
+                    selectedBooking.tour_name ||
+                    selectedBooking.tour?.title ||
+                    'N/A'}
                 </strong>
                 <br />
                 <span style={{ color: "#666" }}>
-                  Duration: {selectedBooking.tour_details?.duration_days || 
-                            selectedBooking.tour?.duration_days || 
-                            0} Days
+                  Duration: {selectedBooking.tour_details?.duration_days ||
+                    selectedBooking.tour?.duration_days ||
+                    0} Days
                 </span>
               </div>
             </Descriptions.Item>
@@ -454,6 +484,22 @@ const BookingsList = () => {
                 {selectedBooking.payment_details?.transaction_id || 'N/A'}
               </span>
             </Descriptions.Item>
+            {selectedBooking.cancellation_reason && (
+              <Descriptions.Item label="Cancellation Reason" span={2}>
+                <div style={{ color: 'red' }}>{selectedBooking.cancellation_reason}</div>
+              </Descriptions.Item>
+            )}
+            {selectedBooking.aadhar_card && (
+              <Descriptions.Item label="Identity (Aadhar)" span={2}>
+                <a
+                  href={selectedBooking.aadhar_card.startsWith('http') ? selectedBooking.aadhar_card : `http://127.0.0.1:8000${selectedBooking.aadhar_card}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button icon={<EyeOutlined />}>View Aadhar Card</Button>
+                </a>
+              </Descriptions.Item>
+            )}
           </Descriptions>
         )}
       </Modal>

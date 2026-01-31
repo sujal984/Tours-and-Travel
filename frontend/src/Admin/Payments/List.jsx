@@ -171,10 +171,13 @@ const PaymentsList = () => {
       width: 120,
       render: (amount) => (
         <span style={{ fontWeight: 'bold', color: '#52c41a' }}>
-          ₹{amount?.toLocaleString()}
+          ₹{parseFloat(amount || 0).toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          })}
         </span>
       ),
-      sorter: (a, b) => a.amount - b.amount,
+      sorter: (a, b) => parseFloat(a.amount || 0) - parseFloat(b.amount || 0),
     },
     {
       title: 'Payment Method',
@@ -200,15 +203,26 @@ const PaymentsList = () => {
     },
     {
       title: 'Payment Date',
-      dataIndex: 'payment_date',
       key: 'payment_date',
       width: 140,
-      render: (date) => new Date(date).toLocaleDateString('en-IN', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      }),
-      sorter: (a, b) => new Date(a.payment_date) - new Date(b.payment_date),
+      render: (_, record) => {
+        // Try multiple date fields
+        const date = record.processed_at || record.payment_date || record.created_at;
+        if (!date) return 'N/A';
+        
+        return new Date(date).toLocaleDateString('en-IN', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      },
+      sorter: (a, b) => {
+        const dateA = new Date(a.processed_at || a.payment_date || a.created_at);
+        const dateB = new Date(b.processed_at || b.payment_date || b.created_at);
+        return dateA - dateB;
+      },
     },
     {
       title: 'Status',

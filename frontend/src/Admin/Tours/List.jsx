@@ -113,9 +113,8 @@ const ToursList = () => {
           !imageUrl.startsWith("http") &&
           !imageUrl.startsWith("data:")
         ) {
-          imageUrl = `http://127.0.0.1:8000${
-            imageUrl.startsWith("/") ? "" : "/"
-          }${imageUrl}`;
+          imageUrl = `http://127.0.0.1:8000${imageUrl.startsWith("/") ? "" : "/"
+            }${imageUrl}`;
         }
 
         return (
@@ -155,12 +154,15 @@ const ToursList = () => {
       sorter: (a, b) => a.max_capacity - b.max_capacity,
     },
     {
-      title: "Base Price",
-      dataIndex: "base_price",
-      key: "base_price",
-      render: (price) => (price ? `₹${price.toLocaleString()}` : "N/A"),
-      sorter: (a, b) => (a.base_price || 0) - (b.base_price || 0),
+      title: "Type",
+      dataIndex: "tour_type",
+      key: "tour_type",
+      render: (type) => (
+        <Tag color={type === "INTERNATIONAL" ? "purple" : "cyan"}>{type}</Tag>
+      ),
+      sorter: (a, b) => (a.tour_type || "").localeCompare(b.tour_type || ""),
     },
+
     {
       title: "Category",
       dataIndex: "category",
@@ -173,6 +175,8 @@ const ToursList = () => {
           WILDLIFE: "cyan",
           SPIRITUAL: "purple",
           BUSINESS: "gold",
+          FAMILY: "magenta",
+          HONEYMOON: "pink",
         };
         return <Tag color={colors[category] || "default"}>{category}</Tag>;
       },
@@ -269,6 +273,8 @@ const ToursList = () => {
             <Option value="WILDLIFE">Wildlife</Option>
             <Option value="SPIRITUAL">Spiritual</Option>
             <Option value="BUSINESS">Business</Option>
+            <Option value="FAMILY">Family Tours</Option>
+            <Option value="HONEYMOON">Honeymoon Packages</Option>
           </Select>
         </div>
 

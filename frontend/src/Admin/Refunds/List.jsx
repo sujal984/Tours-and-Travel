@@ -102,7 +102,7 @@ const RefundsList = () => {
   const handleRefundAction = async (refund, action) => {
     setSelectedRefund(refund);
     setActionType(action);
-    
+
     if (action === 'approve' || action === 'reject') {
       setModalVisible(true);
     } else if (action === 'process') {
@@ -118,7 +118,9 @@ const RefundsList = () => {
   const processRefund = async (refundId) => {
     setActionLoading(true);
     try {
-      await apiClient.post(`${endpoints.GET_REFUND_DETAIL(refundId)}/process/`);
+      const baseUrl = endpoints.GET_REFUND_DETAIL(refundId);
+      const actionUrl = baseUrl.endsWith('/') ? `${baseUrl}process/` : `${baseUrl}/process/`;
+      await apiClient.post(actionUrl);
       message.success("Refund processed successfully!");
       fetchRefunds();
     } catch (error) {
@@ -133,8 +135,13 @@ const RefundsList = () => {
     setActionLoading(true);
     try {
       const endpoint = actionType === 'approve' ? 'approve' : 'reject';
-      await apiClient.post(`${endpoints.GET_REFUND_DETAIL(selectedRefund.id)}/${endpoint}/`, values);
-      
+      // Robust URL construction
+      const detailUrl = endpoints.GET_REFUND_DETAIL(selectedRefund.id);
+      const actionUrl = detailUrl.endsWith('/') ? `${detailUrl}${endpoint}/` : `${detailUrl}/${endpoint}/`;
+
+      console.log("Submitting Refund Action to:", actionUrl);
+      await apiClient.post(actionUrl, values);
+
       message.success(`Refund ${actionType}d successfully!`);
       setModalVisible(false);
       form.resetFields();
@@ -275,7 +282,7 @@ const RefundsList = () => {
     pending: refunds.filter(r => r.status === 'PENDING').length,
     approved: refunds.filter(r => r.status === 'APPROVED').length,
     processed: refunds.filter(r => r.status === 'PROCESSED').length,
-    totalAmount: refunds.reduce((sum, r) => sum + (r.amount || 0), 0),
+    totalAmount: refunds.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0),
   };
 
   return (
@@ -348,8 +355,8 @@ const RefundsList = () => {
       <Modal
         title={
           actionType === 'approve' ? 'Approve Refund' :
-          actionType === 'reject' ? 'Reject Refund' :
-          'Refund Details'
+            actionType === 'reject' ? 'Reject Refund' :
+              'Refund Details'
         }
         open={modalVisible}
         onCancel={() => {
@@ -415,7 +422,7 @@ const RefundsList = () => {
                   <TextArea
                     rows={4}
                     placeholder={
-                      actionType === 'approve' 
+                      actionType === 'approve'
                         ? "Provide reason for approval and any additional notes..."
                         : "Provide reason for rejection..."
                     }

@@ -7,25 +7,30 @@ import Contact from "../Customer/components/Contact.jsx";
 import Customization from "../Customer/components/Customization.jsx";
 import Profile from "../Customer/components/Profile.jsx";
 import MyBookings from "../Customer/components/MyBookings.jsx";
+import MyCustomRequests from "../Customer/components/MyCustomRequests.jsx";
+import MyInquiries from "../Customer/components/MyInquiries.jsx";
 import Booking from "../Customer/components/Booking.jsx";
 import AdminToursList from "../Admin/Tours/List.jsx";
 import AdminTourForm from "../Admin/Tours/Form.jsx";
 import AdminLogin from "../Admin/Auth/Login.jsx";
 import UsersList from "../Admin/Users/List.jsx";
 import BookingsList from "../Admin/Bookings/List.jsx";
-import PricingsList from "../Admin/Pricings/List.jsx";
 import OffersList from "../Admin/Offers/List.jsx";
 import PaymentsList from "../Admin/Payments/List.jsx";
 import RefundsList from "../Admin/Refunds/List.jsx";
 import InvoicesList from "../Admin/Invoices/List.jsx";
 import DestinationsList from "../Admin/Destinations/List.jsx";
+import DestinationForm from "../Admin/Destinations/Form.jsx";
 import ItinerariesList from "../Admin/Itineraries/List.jsx";
 import SeasonsList from "../Admin/Seasons/List.jsx";
 import CustomPackagesList from "../Admin/CustomPackages/List.jsx";
 import ReviewsList from "../Admin/Reviews/List.jsx";
 import InquiriesList from "../Admin/Inquiries/List.jsx";
 import HotelsList from "../Admin/Hotels/List.jsx";
+import HotelForm from "../Admin/Hotels/Form.jsx";
 import VehiclesList from "../Admin/Vehicles/List.jsx";
+import DestinationView from "../Admin/Destinations/View.jsx";
+import HotelView from "../Admin/Hotels/View.jsx";
 
 export const routes = {
   ADMIN_DASHBOARD: {
@@ -64,14 +69,6 @@ export const routes = {
     title: "Bookings",
     withSidebar: true,
     component: BookingsList,
-    public: false,
-    requiredRole: "admin",
-  },
-  ADMIN_PRICINGS: {
-    path: "/admin/pricings",
-    title: "Pricings",
-    withSidebar: true,
-    component: PricingsList,
     public: false,
     requiredRole: "admin",
   },
@@ -187,6 +184,54 @@ export const routes = {
     public: false,
     requiredRole: "admin",
   },
+  ADMIN_DESTINATION_CREATE: {
+    path: "/admin/destinations/create",
+    title: "Create Destination",
+    withSidebar: true,
+    component: DestinationForm,
+    public: false,
+    requiredRole: "admin",
+  },
+  ADMIN_DESTINATION_EDIT: {
+    path: "/admin/destinations/edit/:id",
+    title: "Edit Destination",
+    withSidebar: true,
+    component: DestinationForm,
+    public: false,
+    requiredRole: "admin",
+  },
+  ADMIN_HOTEL_CREATE: {
+    path: "/admin/hotels/create",
+    title: "Create Hotel",
+    withSidebar: true,
+    component: HotelForm,
+    public: false,
+    requiredRole: "admin",
+  },
+  ADMIN_HOTEL_EDIT: {
+    path: "/admin/hotels/edit/:id",
+    title: "Edit Hotel",
+    withSidebar: true,
+    component: HotelForm,
+    public: false,
+    requiredRole: "admin",
+  },
+  ADMIN_DESTINATION_VIEW: {
+    path: "/admin/destinations/view/:id",
+    title: "View Destination",
+    withSidebar: true,
+    component: DestinationView,
+    public: false,
+    requiredRole: "admin",
+  },
+  ADMIN_HOTEL_VIEW: {
+    path: "/admin/hotels/view/:id",
+    title: "View Hotel",
+    withSidebar: true,
+    component: HotelView,
+    public: false,
+    requiredRole: "admin",
+  },
   HOME: {
     path: "/",
     title: "Rima Tours & Travels",
@@ -242,6 +287,22 @@ export const routes = {
     title: "My Bookings",
     withSidebar: false,
     component: MyBookings,
+    public: false,
+    requiredRole: "customer",
+  },
+  MY_CUSTOM_REQUESTS: {
+    path: "/my-custom-requests",
+    title: "My Custom Requests",
+    withSidebar: false,
+    component: MyCustomRequests,
+    public: false,
+    requiredRole: "customer",
+  },
+  MY_INQUIRIES: {
+    path: "/my-inquiries",
+    title: "My Inquiries",
+    withSidebar: false,
+    component: MyInquiries,
     public: false,
     requiredRole: "customer",
   },

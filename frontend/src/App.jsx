@@ -11,6 +11,7 @@ import CustomerLayout from "./Customer/Layout/CustomerLayout";
 import { Suspense } from "react";
 
 function App() {
+ 
   return (
     <Routes>
       {/* Admin Login - MUST be before protected admin routes */}

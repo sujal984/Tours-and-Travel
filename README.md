@@ -1,332 +1,284 @@
 # Tours & Travels Management System
 
-A comprehensive web application for managing tour packages, bookings, payments, and customer reviews. Built with Django REST Framework backend and React frontend.
-
-## 🚀 Features
-
-- **Customer Portal**: Browse tours, make bookings, submit reviews, custom package requests
-- **Admin Dashboard**: Manage tours, bookings, payments, refunds, invoices, and reviews
-- **Authentication**: Separate login systems for customers and administrators
-- **Payment Management**: Handle payments, refunds, and invoice generation
-- **Review System**: Customer reviews with admin approval workflow
-- **Responsive Design**: Mobile-friendly interface using Ant Design
-
-## 🛠️ Tech Stack
-
-### Backend
-- **Django 6.0** - Web framework
-- **Django REST Framework** - API development
-- **PostgreSQL** - Database (SQLite for development)
-- **JWT Authentication** - Secure token-based auth
-- **CORS Headers** - Cross-origin resource sharing
-
-### Frontend
-- **React 18** - Frontend framework
-- **Vite** - Build tool and dev server
-- **Ant Design** - UI component library
-- **React Router** - Client-side routing
-- **Axios** - HTTP client
-- **Framer Motion** - Animations
-
-## 📋 Prerequisites
-
-Before running this project, make sure you have the following installed:
-
-- **Python 3.8+**
-- **Node.js 16+**
-- **npm or yarn**
-- **PostgreSQL** (optional, SQLite works for development)
+A comprehensive full-stack web application for managing tour packages, bookings, payments, and customer inquiries. Built with Django REST Framework backend and React frontend.
 
 ## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.8+ 
+- Node.js 16+
+- npm or yarn
 
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
-cd tours-travels
+git clone <your-repo-url>
+cd tours_travels
 ```
 
 ### 2. Backend Setup
 
-#### Navigate to backend directory
 ```bash
+# Navigate to backend directory
 cd backend
-```
 
-#### Create virtual environment
-```bash
+# Create virtual environment
 python -m venv venv
 
-# On Windows
+# Activate virtual environment
+# On Windows:
 venv\Scripts\activate
-
-# On macOS/Linux
+# On macOS/Linux:
 source venv/bin/activate
-```
 
-#### Install dependencies
-```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-#### Environment Configuration
-Create a `.env` file in the backend directory:
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your configuration:
-```env
-SECRET_KEY=your-secret-key-here
-DEBUG=True
-DATABASE_URL=sqlite:///db.sqlite3
-CORS_ALLOWED_ORIGINS=http://localhost:5174
-```
-
-#### Database Setup
-```bash
 # Run migrations
 python manage.py migrate
 
-# Create admin user (IMPORTANT!)
-python manage.py shell -c "
-from apps.users.models import User
-admin_user = User.objects.create_user(
-    username='admin',
-    email='admin@example.com',
-    password='admin123',
-    first_name='Admin',
-    last_name='User',
-    role='ADMIN'
-)
-print(f'Admin user created: {admin_user.email}')
-"
-
-# Create sample data (optional)
-python manage.py shell -c "
-from apps.tours.models import Destination, Tour, Season
-from decimal import Decimal
-import datetime
-
-# Create sample destination
-destination, created = Destination.objects.get_or_create(
-    name='Sikkim',
-    defaults={
-        'description': 'Beautiful mountain state in India',
-        'country': 'India',
-        'is_active': True
-    }
-)
-
-# Create sample season
-season, created = Season.objects.get_or_create(
-    name='Winter',
-    defaults={
-        'start_date': datetime.date(2024, 12, 1),
-        'end_date': datetime.date(2025, 2, 28),
-        'description': 'Winter season with pleasant weather'
-    }
-)
-
-# Create sample tour
-tour, created = Tour.objects.get_or_create(
-    name='Sikkim Adventure Tour',
-    defaults={
-        'destination': destination,
-        'description': 'Explore the beautiful landscapes of Sikkim',
-        'duration_days': 7,
-        'base_price': Decimal('50000.00'),
-        'max_capacity': 20,
-        'category': 'ADVENTURE',
-        'difficulty_level': 'MODERATE',
-        'is_active': True
-    }
-)
-
-print('Sample data created successfully!')
-"
+# Create superuser (optional - sample data includes admin user)
+python manage.py createsuperuser
 ```
-
-#### Start Backend Server
-```bash
-python manage.py runserver
-```
-
-The backend will be available at `http://127.0.0.1:8000`
 
 ### 3. Frontend Setup
 
-#### Open new terminal and navigate to frontend directory
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Create environment file
+copy .env.example .env
+# Edit .env file with your configuration
+```
+
+### 4. Database Setup with Sample Data
+
+We provide a comprehensive setup script that creates sample data including:
+- Admin and customer users
+- Tour destinations (Pelling, Sikkim, Namchi)
+- Hotels and vehicles
+- Complete tour packages with pricing
+- Seasonal pricing and offers
+
+```bash
+# From the root directory, run the setup script
+python setup_fresh_database.py
+```
+
+This script will:
+- ✅ Truncate existing database
+- ✅ Create admin and customer users
+- ✅ Add destinations, hotels, and vehicles
+- ✅ Create 3 complete tour packages from PDF brochures
+- ✅ Set up seasonal pricing
+- ✅ Add sample offers and discounts
+
+### 5. Start the Application
+
+#### Backend Server
+```bash
+cd backend
+python manage.py runserver
+```
+Backend will run on: `http://localhost:8000`
+
+#### Frontend Server
 ```bash
 cd frontend
-```
-
-#### Install dependencies
-```bash
-npm install
-# or
-yarn install
-```
-
-#### Environment Configuration
-Create a `.env` file in the frontend directory:
-```env
-VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
-```
-
-#### Start Frontend Server
-```bash
 npm run dev
-# or
-yarn dev
 ```
-
-The frontend will be available at `http://localhost:5174`
+Frontend will run on: `http://localhost:5173`
 
 ## 🔐 Default Login Credentials
 
-### Admin Access
-- **URL**: `http://localhost:5174/admin/login`
-- **Email**: `admin@example.com`
-- **Password**: `admin123`
+After running the setup script, you can login with:
 
-### Customer Access
-- Customers can register through the main site
-- Or use the login modal on the customer portal
+### Admin User
+- **Email**: `sujaljain984@gmail.com`
+- **Password**: `Sujal@7383`
+- **Access**: Full admin panel access
+
+### Customer User
+- **Email**: `sujal.jain@aavatto.com`
+- **Password**: `User@1234`
+- **Access**: Customer portal for bookings and inquiries
+
+## 📊 Sample Data Included
+
+### Tours Created
+1. **Premium Pelling Tour Pack 12** - 4 days - ₹13,217
+2. **Premium Sikkim Tour Pack 11** - 13 days - ₹26,847
+3. **Premium Namchi Tour Pack 13** - 5 days - ₹21,575
+
+### Features Included
+- Complete tour itineraries
+- Seasonal pricing variations
+- Hotel and vehicle details
+- Special offers and discounts
+- Multiple destinations
+- Booking management system
+- Payment processing
+- Review system
+- Inquiry management
+
+## 🛠️ Manual Database Commands
+
+If you prefer to set up the database manually:
+
+```bash
+cd backend
+
+# Run migrations
+python manage.py migrate
+
+# Create admin user
+python manage.py create_admin
+
+# Seed basic data
+python manage.py seed_db
+```
 
 ## 📁 Project Structure
 
 ```
-tours-travels/
-├── backend/                    # Django backend
-│   ├── apps/                  # Django apps
-│   │   ├── authentication/    # Auth logic
-│   │   ├── bookings/         # Booking management
-│   │   ├── core/             # Core utilities
-│   │   ├── payments/         # Payment & refund system
-│   │   ├── reviews/          # Review system
-│   │   ├── tours/            # Tour management
-│   │   └── users/            # User management
-│   ├── backend_core/         # Django settings
-│   ├── api/                  # API routing
-│   ├── manage.py
-│   └── requirements.txt
-├── frontend/                  # React frontend
+tours_travels/
+├── backend/                 # Django REST API
+│   ├── apps/
+│   │   ├── authentication/ # User authentication
+│   │   ├── bookings/       # Booking management
+│   │   ├── core/           # Core utilities
+│   │   ├── payments/       # Payment processing
+│   │   ├── reviews/        # Review system
+│   │   ├── tours/          # Tour packages
+│   │   └── users/          # User management
+│   ├── backend_core/       # Django settings
+│   └── manage.py
+├── frontend/               # React application
 │   ├── src/
-│   │   ├── Admin/            # Admin dashboard
-│   │   ├── Customer/         # Customer portal
-│   │   ├── components/       # Shared components
-│   │   ├── context/          # React context
-│   │   ├── services/         # API services
-│   │   └── constant/         # Constants & routes
-│   ├── package.json
-│   └── vite.config.js
-└── README.md
+│   │   ├── Admin/         # Admin panel components
+│   │   ├── Customer/      # Customer portal
+│   │   ├── components/    # Shared components
+│   │   └── services/      # API services
+│   └── package.json
+└── setup_fresh_database.py # Database setup script
 ```
 
-## 🔧 Development Commands
+## 🔧 Environment Configuration
 
-### Backend Commands
-```bash
-# Create new migration
-python manage.py makemigrations
-
-# Apply migrations
-python manage.py migrate
-
-# Create superuser
-python manage.py createsuperuser
-
-# Run tests
-python manage.py test
-
-# Collect static files (production)
-python manage.py collectstatic
+### Backend (.env)
+Create `backend/.env` file:
+```env
+DEBUG=True
+SECRET_KEY=your-secret-key
+DATABASE_URL=sqlite:///db.sqlite3
 ```
 
-### Frontend Commands
-```bash
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-
-# Run linting
-npm run lint
+### Frontend (.env)
+Create `frontend/.env` file:
+```env
+VITE_API_BASE_URL=http://localhost:8000/api
 ```
-
-## 🌐 API Endpoints
-
-### Authentication
-- `POST /api/v1/auth/login/` - User login
-- `POST /api/v1/auth/register/` - User registration
-- `POST /api/v1/auth/admin/login/` - Admin login
-
-### Tours
-- `GET /api/v1/tours/` - List tours
-- `GET /api/v1/tours/{id}/` - Tour details
-- `POST /api/v1/tours/custom-packages/` - Submit custom package request
-
-### Bookings
-- `GET /api/v1/bookings/` - List user bookings
-- `POST /api/v1/bookings/` - Create booking
-- `POST /api/v1/bookings/{id}/cancel/` - Cancel booking
-- `POST /api/v1/bookings/{id}/add_review/` - Add review
-
-### Payments
-- `GET /api/v1/payments/` - List payments
-- `GET /api/v1/payments/refunds/` - List refunds
-- `GET /api/v1/payments/invoices/` - List invoices
 
 ## 🚀 Deployment
 
 ### Backend Deployment
-1. Set `DEBUG=False` in production settings
-2. Configure PostgreSQL database
-3. Set proper `ALLOWED_HOSTS`
-4. Configure static files serving
-5. Use WSGI server like Gunicorn
+1. Set `DEBUG=False` in production
+2. Configure proper database (PostgreSQL recommended)
+3. Set up static file serving
+4. Configure CORS settings
 
 ### Frontend Deployment
-1. Build the project: `npm run build`
-2. Serve the `dist` folder using a web server
-3. Configure API base URL for production
+1. Build the application: `npm run build`
+2. Serve the `dist` folder with a web server
+3. Update API base URL for production
+
+## 📝 API Documentation
+
+Once the backend is running, visit:
+- API Root: `http://localhost:8000/api/`
+- Admin Panel: `http://localhost:8000/admin/`
+
+## 🧪 Testing
+
+### Backend Tests
+```bash
+cd backend
+python manage.py test
+```
+
+### Frontend Tests
+```bash
+cd frontend
+npm run test
+```
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch: `git checkout -b feature-name`
-3. Commit changes: `git commit -am 'Add feature'`
-4. Push to branch: `git push origin feature-name`
+2. Create a feature branch
+3. Make your changes
+4. Run tests
 5. Submit a pull request
 
-## 📝 License
+## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
-## 🐛 Troubleshooting
+## 🆘 Troubleshooting
 
 ### Common Issues
 
-1. **CORS Errors**: Make sure `CORS_ALLOWED_ORIGINS` includes your frontend URL
-2. **Database Errors**: Run `python manage.py migrate` to apply migrations
-3. **Authentication Issues**: Clear browser storage and cookies
-4. **Port Conflicts**: Change ports in configuration if needed
+1. **Database Migration Errors**
+   ```bash
+   python manage.py migrate --fake-initial
+   ```
 
-### Getting Help
+2. **Port Already in Use**
+   ```bash
+   # Backend
+   python manage.py runserver 8001
+   
+   # Frontend
+   npm run dev -- --port 5174
+   ```
 
-- Check the console for error messages
-- Verify all environment variables are set correctly
-- Ensure both backend and frontend servers are running
-- Check network requests in browser developer tools
+3. **Permission Errors**
+   - Ensure virtual environment is activated
+   - Check file permissions
+   - Run as administrator if needed
+
+4. **Module Not Found Errors**
+   ```bash
+   pip install -r requirements.txt
+   npm install
+   ```
+
+### Reset Database
+If you need to completely reset the database:
+```bash
+# Delete database file
+rm backend/db.sqlite3
+
+# Run migrations
+cd backend
+python manage.py migrate
+
+# Run setup script again
+cd ..
+python setup_fresh_database.py
+```
 
 ## 📞 Support
 
-For support and questions, please create an issue in the repository or contact the development team.
+For support and questions:
+- Create an issue in the repository
+- Check the troubleshooting section
+- Review the API documentation
 
 ---
 

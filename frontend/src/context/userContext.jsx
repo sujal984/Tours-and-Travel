@@ -4,6 +4,7 @@ import { message } from "antd";
 import { apiClient } from "../services/api";
 import Cookies from 'js-cookie'
 import { endpoints } from "../constant/ENDPOINTS";
+import { getAnonymousInquiryTokens, clearAnonymousInquiryTokens } from "../utils/inquiryUtils";
 const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
@@ -79,6 +80,31 @@ export const UserProvider = ({ children }) => {
     initializeAuth();
   }, []);
 
+  // Associate anonymous inquiries with logged-in user
+  const associateAnonymousInquiries = async () => {
+    try {
+      const tokens = getAnonymousInquiryTokens();
+      if (tokens.length === 0) return;
+
+      console.log("Attempting to associate inquiries with tokens:", tokens);
+
+      const response = await apiClient.post(endpoints.ASSOCIATE_ANONYMOUS_INQUIRIES, {
+        anonymous_tokens: tokens
+      });
+
+      if (response.data?.data?.associated_count > 0) {
+        clearAnonymousInquiryTokens();
+        message.success(`${response.data.data.associated_count} inquiry(ies) have been associated with your account!`);
+        console.log("Successfully associated inquiries:", response.data.data);
+      } else {
+        console.log("No inquiries were associated:", response.data);
+      }
+    } catch (error) {
+      console.error("Error associating anonymous inquiries:", error);
+      // Don't show error message to user as this is a background operation
+    }
+  };
+
   // Login function
   const login = async (email, password, userType = "user") => {
     setLoading(true);
@@ -112,6 +138,11 @@ export const UserProvider = ({ children }) => {
           Cookies.set("userRole", userData.role || userType, { expires: 7 });
           localStorage.setItem("user", JSON.stringify(userData));
           localStorage.setItem("userRole", userData.role || userType);
+
+          // Associate anonymous inquiries after successful login
+          setTimeout(() => {
+            associateAnonymousInquiries();
+          }, 1000);
         }
       } catch (err) {
         console.warn("Failed to fetch user data:", err);
@@ -124,6 +155,11 @@ export const UserProvider = ({ children }) => {
           Cookies.set("userRole", fallbackUser.role || userType, { expires: 7 });
           localStorage.setItem("user", JSON.stringify(fallbackUser));
           localStorage.setItem("userRole", fallbackUser.role || userType);
+
+          // Associate anonymous inquiries
+          setTimeout(() => {
+            associateAnonymousInquiries();
+          }, 1000);
         }
       }
 
@@ -170,7 +206,7 @@ export const UserProvider = ({ children }) => {
             await logout();
             return { success: false, error: "Access denied. Admin privileges required." };
           }
-          
+
           setUser(userData);
           setRole(userData.role);
           Cookies.set("user", JSON.stringify(userData), { expires: 7 });
@@ -242,8 +278,16 @@ export const UserProvider = ({ children }) => {
         registerData
       );
 
-      message.success("Registration successful! Please login.");
-      return { success: true, data: response.data };
+      // After successful registration, automatically log the user in
+      const loginResult = await login(registerData.email, registerData.password);
+      
+      if (loginResult.success) {
+        message.success("Registration successful! Welcome!");
+        return { success: true, data: response.data };
+      } else {
+        message.success("Registration successful! Please login.");
+        return { success: true, data: response.data };
+      }
     } catch (error) {
       const errorMsg =
         error.response?.data?.message || error.message || "Registration failed";
@@ -259,11 +303,15 @@ export const UserProvider = ({ children }) => {
     setLoading(true);
     try {
       const response = await apiClient.patch(endpoints.UPDATE_PROFILE, updatedUserData);
-      const userData = response.data;
+      const userData = response.data?.data || response.data;
       setUser(userData);
-      Cookies.set("user", JSON.stringify(userData));
+
+      // Update persistent storage
+      Cookies.set("user", JSON.stringify(userData), { expires: 7 });
+      localStorage.setItem("user", JSON.stringify(userData));
+
       message.success("Profile updated successfully");
-      return { success: true, data: response.data };
+      return { success: true, data: userData };
     } catch (error) {
       const errorMsg =
         error.response?.data?.message || error.message || "Update failed";

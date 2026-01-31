@@ -25,7 +25,7 @@ const Footer = () => {
   ];
 
   return (
-    <footer style={{ background: '#1e272e', color: 'white', paddingTop: '80px', marginTop: 'auto' }}>
+    <footer style={{ background: '#1e272e', color: 'white', paddingTop: '80px', marginTop: '32px' }}>
       <div className="container-xl" style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 20px' }}>
         <Row gutter={[48, 48]}>
           {/* Company Info */}
@@ -110,7 +110,7 @@ const Footer = () => {
                   { label: "Family Tours", link: "/tours?type=family" },
                   { label: "Honeymoon Packages", link: "/tours?type=honeymoon" },
                   { label: "Adventure Trips", link: "/tours?type=adventure" },
-                  { label: "Customize Trip", link: "/customization" }
+                  { label: "Customize Trip", link: "/customize-tour" }
                 ].map((item, idx) => (
                   <li key={idx} style={{ marginBottom: '12px' }}>
                     <a
